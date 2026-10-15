@@ -51,7 +51,15 @@
 
 * { box-sizing: border-box; }
 
-html { background: var(--bg); }
+/* Hintergrund in Ebenen: Grundfarbe (html) → Bild oben (body::before) → Farbverläufe und Raster (body::after) */
+html {
+  min-height: 100%;
+  background:
+    radial-gradient(700px 500px at 50% 110%, rgba(56, 189, 248, 0.08), transparent 60%),
+    linear-gradient(180deg, var(--bg-2), var(--bg) 40%);
+  background-color: var(--bg);
+  background-attachment: fixed;
+}
 
 body {
   margin: 0;
@@ -59,24 +67,31 @@ body {
   color: var(--text);
   font: 15px/1.55 var(--font-body);
   -webkit-font-smoothing: antialiased;
-  background:
-    radial-gradient(900px 500px at 8% -5%, rgba(95, 227, 92, 0.13), transparent 60%),
-    radial-gradient(800px 600px at 100% 10%, rgba(99, 102, 241, 0.14), transparent 60%),
-    radial-gradient(700px 500px at 50% 110%, rgba(56, 189, 248, 0.08), transparent 60%),
-    linear-gradient(180deg, var(--bg-2), var(--bg) 40%);
-  background-attachment: fixed;
+  background: transparent;
+}
+/* Stimmungsbild: nur im oberen Bereich, läuft nach unten und zu den Seiten weich aus, scrollt mit */
+body::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: min(78vh, 820px); z-index: -2; pointer-events: none;
+  background: url("/bg/bambus.jpg") center 30% / cover no-repeat;
+  opacity: .5; filter: saturate(1.1) brightness(1.05);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, .55) 45%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 22%, #000 78%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, .55) 45%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 22%, #000 78%, transparent 100%);
+  mask-composite: intersect;
 }
 
 /* Feines Pixel-Raster als Minecraft-Anspielung, nach unten ausgeblendet */
-body::before {
+body::after {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
   background-image:
+    radial-gradient(900px 500px at 8% -5%, rgba(95, 227, 92, 0.13), transparent 60%),
+    radial-gradient(800px 600px at 100% 10%, rgba(99, 102, 241, 0.14), transparent 60%),
     linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
-  background-size: 32px 32px;
+  background-size: auto, auto, 32px 32px, 32px 32px;
   mask-image: linear-gradient(180deg, #000, transparent 70%);
   z-index: -1;
 }
