@@ -64,36 +64,38 @@ const POLL_MS = 30_000;
           </div>
 
           <div class="progress-actions">
-            <button type="button" class="with-icon" (click)="refresh(p)" [disabled]="busy()">
-              <app-icon name="refresh" [size]="15" [class.spin]="refreshing()" />{{ refreshing() ? 'Aktualisiere …' : 'Aktualisieren' }}
-            </button>
-            <span class="action-group">
+            <div class="action-row">
+              <button type="button" class="with-icon" (click)="refresh(p)" [disabled]="busy()">
+                <app-icon name="refresh" [size]="15" [class.spin]="refreshing()" />{{ refreshing() ? 'Aktualisiere …' : 'Aktualisieren' }}
+              </button>
               <a class="button-link with-icon" [href]="'/api/projects/' + p.id + '/schematic'" download>
                 <app-icon name="file-download" [size]="15" />Blaupause
               </a>
-              <button type="button" class="icon-btn" popovertarget="schematic-help" title="Blaupause im Spiel öffnen" aria-label="Blaupause im Spiel öffnen">
-                <app-icon name="info-circle" [size]="16" />
+              @if (p.placement) {
+                <a class="button-link with-icon" routerLink="/karte"
+                   [queryParams]="{ x: p.placement.x, y: p.placement.y, z: p.placement.z, dim: p.placement.dimension }">
+                  <app-icon name="map-2" [size]="15" />Karte
+                </a>
+              }
+            </div>
+            <div class="action-row tertiary">
+              <button type="button" class="text-button with-icon" popovertarget="schematic-help">
+                <app-icon name="info-circle" [size]="15" />Blaupause im Spiel verwenden
               </button>
-            </span>
-            @if (p.placement) {
-              <a class="button-link with-icon" routerLink="/karte"
-                 [queryParams]="{ x: p.placement.x, y: p.placement.y, z: p.placement.z, dim: p.placement.dimension }">
-                <app-icon name="map-2" [size]="15" />Karte
-              </a>
-            }
-            @if (auth.isAdmin()) {
-              <button type="button" class="danger icon-only" (click)="remove(p)" title="Projekt löschen" aria-label="Projekt löschen">
-                <app-icon name="trash" [size]="16" />
-              </button>
-            }
+              @if (auth.isAdmin()) {
+                <button type="button" class="text-button danger-text with-icon" (click)="remove(p)">
+                  <app-icon name="trash" [size]="15" />Löschen
+                </button>
+              }
+            </div>
+            <p class="hint progress-meta">Aktualisiert sich automatisch alle {{ interval() }} Min.</p>
           </div>
-          <p class="hint progress-meta">Aktualisiert sich automatisch alle {{ interval() }} Min.</p>
         </section>
       </div>
 
       <div id="schematic-help" popover class="popover-card">
         <header class="create-head">
-          <strong>Blaupause im Spiel öffnen</strong>
+          <strong>Blaupause im Spiel verwenden</strong>
           <button type="button" class="icon-btn" popovertarget="schematic-help" popovertargetaction="hide" aria-label="Schließen">
             <app-icon name="x" [size]="16" />
           </button>

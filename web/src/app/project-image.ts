@@ -1,4 +1,4 @@
-import { Component, HostListener, inject, input, output, signal } from '@angular/core';
+import { Component, ElementRef, HostListener, inject, input, output, signal, viewChild } from '@angular/core';
 import { ProjectsService, errorMessage, imageFromTransfer } from './projects.service';
 import { NgTemplateOutlet } from '@angular/common';
 import { Icon } from './icon';
@@ -15,9 +15,9 @@ import { Icon } from './icon';
     <section class="card media-card" [class.dragging]="dragging()" [class.has-image]="!!image()" (dragover)="onDragOver($event)"
              (dragleave)="dragging.set(false)" (drop)="onDrop($event)">
       @if (image()) {
-        <a [href]="image()" target="_blank" rel="noopener" class="media-view" title="In voller Größe öffnen">
+        <button type="button" class="media-view" (click)="openLightbox()" title="Groß anzeigen" aria-label="Bild groß anzeigen">
           <img [src]="image()" alt="Bild des Bauprojekts" />
-        </a>
+        </button>
         <button type="button" class="media-fab" (click)="menuOpen.set(true)" [attr.aria-expanded]="menuOpen()"
                 aria-label="Bild bearbeiten" title="Bild bearbeiten">
           <app-icon name="pencil" [size]="16" />
@@ -68,6 +68,14 @@ import { Icon } from './icon';
         <div class="drop-overlay">Bild hier ablegen</div>
       }
     </section>
+
+    <!-- Großansicht -->
+    <dialog #lightbox class="lightbox" (click)="lightbox.close()" aria-label="Bild des Bauprojekts">
+      @if (image()) { <img [src]="image()" alt="Bild des Bauprojekts" (click)="$event.stopPropagation()" /> }
+      <button type="button" class="lightbox-close" (click)="lightbox.close()" aria-label="Schließen">
+        <app-icon name="x" [size]="20" />
+      </button>
+    </dialog>
   `,
 })
 export class ProjectImage {
@@ -81,6 +89,11 @@ export class ProjectImage {
   protected error = signal('');
   protected dragging = signal(false);
   protected menuOpen = signal(false);
+  private lightbox = viewChild<ElementRef<HTMLDialogElement>>('lightbox');
+
+  openLightbox() {
+    this.lightbox()?.nativeElement.showModal();
+  }
 
   /** Strg+V irgendwo auf der Projektseite – außer beim Tippen in Eingabefeldern */
   @HostListener('window:paste', ['$event'])
