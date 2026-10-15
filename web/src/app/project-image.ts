@@ -1,42 +1,68 @@
 import { Component, HostListener, inject, input, output, signal } from '@angular/core';
 import { ProjectsService, errorMessage, imageFromTransfer } from './projects.service';
+import { NgTemplateOutlet } from '@angular/common';
 import { Icon } from './icon';
 
 /**
  * Projektbild auf der Detailseite: hochladen, aus der Zwischenablage einfügen (Strg+V oder Knopf),
  * per Ziehen & Ablegen setzen, entfernen. Wird im Browser verkleinert, bevor es hochgeladen wird.
+ * Ohne Bild zeigt der Platzhalter die Aktionen, mit Bild ein Stift-Knopf, der ein Overlay öffnet.
  */
 @Component({
   selector: 'app-project-image',
-  imports: [Icon],
+  imports: [Icon, NgTemplateOutlet],
   template: `
-    <section class="card project-image" [class.dragging]="dragging()" (dragover)="onDragOver($event)"
+    <section class="card media-card" [class.dragging]="dragging()" [class.has-image]="!!image()" (dragover)="onDragOver($event)"
              (dragleave)="dragging.set(false)" (drop)="onDrop($event)">
       @if (image()) {
-        <a [href]="image()" target="_blank" rel="noopener" class="project-image-view" title="In voller Größe öffnen">
+        <a [href]="image()" target="_blank" rel="noopener" class="media-view" title="In voller Größe öffnen">
           <img [src]="image()" alt="Bild des Bauprojekts" />
         </a>
+        <button type="button" class="media-fab" (click)="menuOpen.set(true)" [attr.aria-expanded]="menuOpen()"
+                aria-label="Bild bearbeiten" title="Bild bearbeiten">
+          <app-icon name="pencil" [size]="16" />
+        </button>
+        @if (menuOpen()) {
+          <div class="media-overlay" (click)="closeMenu()">
+            <div class="media-menu" role="menu" (click)="$event.stopPropagation()">
+              <ng-container *ngTemplateOutlet="actions" />
+              <button type="button" class="ghost-button with-icon" (click)="closeMenu()">
+                <app-icon name="x" [size]="15" />Abbrechen
+              </button>
+            </div>
+          </div>
+        }
       } @else {
-        <div class="project-image-empty">
-          <app-icon class="drop-icon" name="photo" [size]="32" [stroke]="1.5" />
+        <div class="media-empty">
+          <span class="media-empty-icon"><app-icon name="photo" [size]="28" [stroke]="1.5" /></span>
           <strong>Noch kein Bild</strong>
-          <span class="hint">Screenshot im Spiel mit <kbd>F2</kbd>, dann hier <kbd>Strg</kbd>+<kbd>V</kbd> – oder Datei hierher ziehen.</span>
+          <span class="hint">Datei hierher ziehen oder mit <kbd>Strg</kbd>+<kbd>V</kbd> einfügen.</span>
+          <div class="media-empty-actions">
+            <ng-container *ngTemplateOutlet="actions" />
+          </div>
         </div>
       }
 
-      <div class="project-image-actions">
-        <label class="button-link">
-          {{ image() ? 'Ersetzen' : 'Bild hochladen' }}
+      <ng-template #actions>
+        <label class="button-link with-icon" [class.disabled]="busy()">
+          <app-icon name="upload" [size]="15" />{{ image() ? 'Ersetzen' : 'Bild hochladen' }}
           <input type="file" accept="image/png,image/jpeg,image/webp" hidden (change)="onFile($event)" [disabled]="busy()" />
         </label>
-        <button type="button" class="secondary compact" (click)="pasteFromClipboard()" [disabled]="busy()">Aus Zwischenablage</button>
+        <button type="button" class="secondary with-icon" (click)="pasteFromClipboard()" [disabled]="busy()">
+          <app-icon name="clipboard" [size]="15" />Aus Zwischenablage
+        </button>
         @if (image()) {
-          <button type="button" class="danger compact" (click)="remove()" [disabled]="busy()">Entfernen</button>
+          <button type="button" class="danger with-icon" (click)="remove()" [disabled]="busy()">
+            <app-icon name="trash" [size]="15" />Entfernen
+          </button>
         }
-        @if (busy()) { <span class="hint">Lade hoch …</span> }
-      </div>
+      </ng-template>
+
+      @if (busy()) {
+        <div class="media-busy"><span class="spinner"></span>Lade hoch …</div>
+      }
       @if (error()) {
-        <p class="error small">{{ error() }}</p>
+        <p class="error small media-error">{{ error() }}</p>
       }
       @if (dragging()) {
         <div class="drop-overlay">Bild hier ablegen</div>
@@ -54,6 +80,7 @@ export class ProjectImage {
   protected busy = signal(false);
   protected error = signal('');
   protected dragging = signal(false);
+  protected menuOpen = signal(false);
 
   /** Strg+V irgendwo auf der Projektseite – außer beim Tippen in Eingabefeldern */
   @HostListener('window:paste', ['$event'])
@@ -65,6 +92,11 @@ export class ProjectImage {
     if (!file) return;
     event.preventDefault();
     this.upload(file);
+  }
+
+  @HostListener('document:keydown.escape')
+  closeMenu() {
+    if (!this.busy()) this.menuOpen.set(false);
   }
 
   onDragOver(event: DragEvent) {
@@ -118,6 +150,7 @@ export class ProjectImage {
     this.error.set('');
     try {
       await action();
+      this.menuOpen.set(false);
       this.changed.emit();
     } catch (err) {
       this.error.set(err instanceof DOMException ? 'Das Bild konnte nicht gelesen werden.' : errorMessage(err));

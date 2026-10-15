@@ -17,92 +17,111 @@ const POLL_MS = 30_000;
   selector: 'app-project-detail',
   imports: [RouterLink, DecimalPipe, PercentPipe, KeyValuePipe, ItemIcon, ItemLanguageSwitch, ProjectImage, Icon],
   template: `
-    <a routerLink="/" class="back"><app-icon name="arrow-left" [size]="14" />Alle Projekte</a>
+    <a routerLink="/" class="back-button"><app-icon name="arrow-left" [size]="16" />Alle Projekte</a>
 
     @if (project(); as p) {
-      <header class="detail-head">
-        <div>
-          <span class="eyebrow">Bauprojekt</span>
-          <h1>{{ p.name }}</h1>
-          <p class="hint">
-            {{ p.schematicName }} · {{ p.sizeX }}×{{ p.sizeY }}×{{ p.sizeZ }} · {{ p.totalBlocks | number }} Blöcke
-            @if (p.description) { · {{ p.description }} }
-          </p>
-          <details class="download-help">
-            <summary>Blaupause im Spiel öffnen?</summary>
-            <ol>
-              <li>„Blaupause herunterladen“ klicken.</li>
-              <li>Datei in den <code>schematics</code>-Ordner deiner Instanz verschieben, z. B.
-                <code>%APPDATA%\\ModrinthApp\\profiles\\custom\\schematics</code>
-                (in der Modrinth App: Instanz → ⋮ → Ordner öffnen).</li>
-              <li>Im Spiel <kbd>M</kbd> → Load Schematics → Datei wählen → Load Schematic.</li>
-            </ol>
-          </details>
+      <header class="detail-title">
+        <span class="eyebrow">Bauprojekt</span>
+        <h1>{{ p.name }}</h1>
+        <div class="tile-chips">
+          <span class="chip-gray" title="Schematic-Datei"><app-icon name="file" [size]="13" />{{ p.schematicName }}</span>
+          <span class="chip-gray" title="Maße (Breite × Höhe × Tiefe)"><app-icon name="box" [size]="13" />{{ p.sizeX }}×{{ p.sizeY }}×{{ p.sizeZ }}</span>
+          <span class="chip-gray" title="Blöcke insgesamt"><app-icon name="stack-2" [size]="13" />{{ p.totalBlocks | number }} Blöcke</span>
         </div>
-        <div class="head-actions">
-          <a class="button-link" [href]="'/api/projects/' + p.id + '/schematic'" download
-             title="In den schematics-Ordner deiner Minecraft-Instanz speichern, dann im Spiel M → Load Schematics">Blaupause herunterladen</a>
-          @if (p.placement) {
-            <a class="button-link" routerLink="/karte"
-               [queryParams]="{ x: p.placement.x, y: p.placement.y, z: p.placement.z, dim: p.placement.dimension }">Auf Karte zeigen</a>
-          }
-          <button (click)="refresh(p)" [disabled]="busy()">{{ refreshing() ? 'Aktualisiere …' : 'Jetzt aktualisieren' }}</button>
-          @if (auth.isAdmin()) {
-            <button class="danger" (click)="remove(p)">Löschen</button>
-          }
-        </div>
+        @if (p.description) { <p class="hint">{{ p.description }}</p> }
       </header>
-
-      <app-project-image [projectId]="p.id" [image]="p.image" (changed)="load()" />
 
       @if (error()) {
         <p class="error">{{ error() }}</p>
       }
 
-      <section class="card progress-card">
-        <div>
-          <div class="project-head">
-            <strong>Im Lager gedeckt</strong>
-            <span>{{ p.covered | number }} / {{ p.open | number }} offene Items ({{ ratioOf(p.covered, p.open) | percent }})</span>
+      <div class="detail-grid">
+        <app-project-image [projectId]="p.id" [image]="p.image" (changed)="load()" />
+
+        <section class="card progress-card">
+          <div class="progress-block">
+            <div class="progress-label">
+              <strong>Im Lager vorrätig</strong>
+              <span class="progress-pct">{{ ratioOf(p.covered, p.open) | percent }}</span>
+            </div>
+            <div class="bar big"><div [style.width.%]="ratioOf(p.covered, p.open) * 100"></div></div>
+            <span class="hint">
+              @if (p.storages.length) { {{ p.covered | number }} von {{ p.open | number }} offenen Items }
+              @else { Noch kein Lager zugeordnet }
+            </span>
           </div>
-          <div class="bar big"><div [style.width.%]="ratioOf(p.covered, p.open) * 100"></div></div>
-          @if (!p.storages.length) {
-            <small class="hint">Noch kein Lager zugeordnet (siehe unten).</small>
-          }
-        </div>
-        <div>
-          <div class="project-head">
-            <strong>Verbaut</strong>
-            @if (p.checkedAt) {
-              <span>{{ p.placed | number }} / {{ p.required | number }} Items ({{ ratioOf(p.placed, p.required) | percent }})</span>
-            } @else {
-              <span class="hint">noch nicht geprüft</span>
+
+          <div class="progress-block">
+            <div class="progress-label">
+              <strong>Verbaut</strong>
+              <span class="progress-pct built">{{ p.checkedAt ? (ratioOf(p.placed, p.required) | percent) : '–' }}</span>
+            </div>
+            <div class="bar big built"><div [style.width.%]="ratioOf(p.placed, p.required) * 100"></div></div>
+            <span class="hint">
+              @if (p.checkedAt) { {{ p.placed | number }} von {{ p.required | number }} Items · geprüft {{ date(p.checkedAt) }} }
+              @else { Noch nicht geprüft – dafür den Standort angeben }
+            </span>
+          </div>
+
+          <div class="progress-actions">
+            <button type="button" class="with-icon" (click)="refresh(p)" [disabled]="busy()">
+              <app-icon name="refresh" [size]="15" [class.spin]="refreshing()" />{{ refreshing() ? 'Aktualisiere …' : 'Aktualisieren' }}
+            </button>
+            <span class="action-group">
+              <a class="button-link with-icon" [href]="'/api/projects/' + p.id + '/schematic'" download>
+                <app-icon name="file-download" [size]="15" />Blaupause
+              </a>
+              <button type="button" class="icon-btn" popovertarget="schematic-help" title="Blaupause im Spiel öffnen" aria-label="Blaupause im Spiel öffnen">
+                <app-icon name="info-circle" [size]="16" />
+              </button>
+            </span>
+            @if (p.placement) {
+              <a class="button-link with-icon" routerLink="/karte"
+                 [queryParams]="{ x: p.placement.x, y: p.placement.y, z: p.placement.z, dim: p.placement.dimension }">
+                <app-icon name="map-2" [size]="15" />Karte
+              </a>
+            }
+            @if (auth.isAdmin()) {
+              <button type="button" class="danger icon-only" (click)="remove(p)" title="Projekt löschen" aria-label="Projekt löschen">
+                <app-icon name="trash" [size]="16" />
+              </button>
             }
           </div>
-          <div class="bar big built"><div [style.width.%]="ratioOf(p.placed, p.required) * 100"></div></div>
-          <small class="hint">
-            Gesamtbedarf {{ p.required | number }} Items
-            @if (p.checkedAt) { · geprüft {{ date(p.checkedAt) }} }
-            · automatisch alle {{ interval() }} Min.
-          </small>
-        </div>
-      </section>
+          <p class="hint progress-meta">Aktualisiert sich automatisch alle {{ interval() }} Min.</p>
+        </section>
+      </div>
+
+      <div id="schematic-help" popover class="popover-card">
+        <header class="create-head">
+          <strong>Blaupause im Spiel öffnen</strong>
+          <button type="button" class="icon-btn" popovertarget="schematic-help" popovertargetaction="hide" aria-label="Schließen">
+            <app-icon name="x" [size]="16" />
+          </button>
+        </header>
+        <ol>
+          <li>Blaupause herunterladen.</li>
+          <li>In den Ordner <code>schematics</code> deiner Instanz legen – in der Modrinth App: Instanz → ⋮ → Ordner öffnen.</li>
+          <li>Im Spiel <kbd>M</kbd> → Load Schematics → Datei wählen → Load Schematic.</li>
+        </ol>
+      </div>
 
       <section class="card">
-        <div class="project-head">
+        <div class="section-head">
           <h3>Lager</h3>
-          <a routerLink="/lager" class="hint more-link">Lager verwalten<app-icon name="arrow-right" [size]="14" /></a>
+          <a routerLink="/lager" class="more-link">Lager verwalten<app-icon name="arrow-right" [size]="15" /></a>
         </div>
         @if (!allStorages().length) {
-          <p class="hint">Es gibt noch keine Lager. <a routerLink="/lager">Jetzt eins anlegen</a>.</p>
+          <p class="hint">Noch keine Lager. <a routerLink="/lager">Jetzt eins anlegen</a></p>
         } @else {
-          <p class="hint">Bestand dieser Lager zählt für das Projekt. Mehrere Projekte können sich ein Lager teilen.</p>
-          <div class="chips">
+          <p class="hint">Der Bestand ausgewählter Lager zählt für dieses Projekt.</p>
+          <div class="select-chips" role="group" aria-label="Lager für dieses Projekt">
             @for (s of allStorages(); track s.id) {
-              <label class="chip" [class.on]="assigned().has(s.id)">
-                <input type="checkbox" [checked]="assigned().has(s.id)" (change)="toggleStorage(p, s.id)" [disabled]="busy()" />
-                {{ s.name }} <span class="hint">· {{ s.itemCount | number }} Items</span>
-              </label>
+              <button type="button" class="select-chip" [class.on]="assigned().has(s.id)" [attr.aria-pressed]="assigned().has(s.id)"
+                      (click)="toggleStorage(p, s.id)" [disabled]="busy()">
+                <span class="select-check">@if (assigned().has(s.id)) { <app-icon name="check" [size]="13" [stroke]="3" /> }</span>
+                {{ s.name }}
+                <span class="select-meta">{{ s.itemCount | number }} Items</span>
+              </button>
             }
           </div>
         }
@@ -111,12 +130,18 @@ const POLL_MS = 30_000;
       <details class="card" [open]="!p.placement">
         <summary>
           Standort in der Welt
-          @if (p.placement) { <span class="hint mono">· {{ p.placement.x }} / {{ p.placement.y }} / {{ p.placement.z }}</span> }
+          @if (p.placement; as pl) {
+            <span class="summary-meta">
+              <span class="coord"><b>X</b>{{ pl.x }}</span>
+              <span class="coord"><b>Y</b>{{ pl.y }}</span>
+              <span class="coord"><b>Z</b>{{ pl.z }}</span>
+              <span class="chip-gray"><app-icon name="world" [size]="13" />{{ dimensions[pl.dimension] }}</span>
+              @if (pl.rotation !== 'NONE') { <span class="chip-gray"><app-icon name="rotate" [size]="13" />{{ rotationShort[pl.rotation] }}</span> }
+              @if (pl.mirror !== 'NONE') { <span class="chip-gray"><app-icon name="flip-vertical" [size]="13" />gespiegelt</span> }
+            </span>
+          }
         </summary>
-        <p class="hint">
-          Werte aus Litematica übernehmen: <kbd>M</kbd> → Schematic Placements → Configure.
-          Daraus wird berechnet, welche Blöcke schon verbaut sind.
-        </p>
+        <p class="hint">Werte aus Litematica: <kbd>M</kbd> → Schematic Placements → Configure.</p>
         <form class="placement" (submit)="savePlacement($event, form)" #form>
           <label>X <input name="x" type="number" step="1" required [value]="p.placement?.x ?? ''" /></label>
           <label>Y <input name="y" type="number" step="1" required [value]="p.placement?.y ?? ''" /></label>
@@ -210,10 +235,10 @@ const POLL_MS = 30_000;
                   </td>
                   <td class="status-col">
                     @switch (state(m)) {
-                      @case ('done') { <span class="pill" data-state="done"><i></i>Verbaut</span> }
-                      @case ('covered') { <span class="pill" data-state="covered"><i></i>Gedeckt</span> }
-                      @case ('partial') { <span class="pill" data-state="partial"><i></i>Fehlen {{ m.missing | number }}</span> }
-                      @default { <span class="pill" data-state="missing"><i></i>Fehlen {{ m.missing | number }}</span> }
+                      @case ('done') { <span class="status-tag" data-state="done"><app-icon name="circle-check-filled" [size]="16" />Verbaut</span> }
+                      @case ('covered') { <span class="status-tag" data-state="covered"><app-icon name="circle-check" [size]="16" />Vorrätig</span> }
+                      @case ('partial') { <span class="status-tag" data-state="partial"><app-icon name="circle-half-2" [size]="16" />Fehlen <b>{{ m.missing | number }}</b></span> }
+                      @default { <span class="status-tag" data-state="missing"><app-icon name="circle-dashed" [size]="16" />Fehlen <b>{{ m.missing | number }}</b></span> }
                     }
                   </td>
                 </tr>
@@ -256,7 +281,7 @@ export class ProjectDetail {
     return [
       { key: 'all' as const, label: 'Alle', count: m.length },
       { key: 'missing' as const, label: 'Fehlend', count: count('missing') },
-      { key: 'covered' as const, label: 'Gedeckt', count: count('covered') },
+      { key: 'covered' as const, label: 'Vorrätig', count: count('covered') },
       { key: 'done' as const, label: 'Verbaut', count: count('done') },
     ];
   });
@@ -273,6 +298,8 @@ export class ProjectDetail {
   readonly rotations = ROTATION_LABELS;
   readonly mirrors = MIRROR_LABELS;
   readonly dimensions = DIMENSION_LABELS;
+  /** Kurzform der Drehung für den Standort-Chip */
+  readonly rotationShort: Record<string, string> = { CLOCKWISE_90: '90°', CLOCKWISE_180: '180°', COUNTERCLOCKWISE_90: '270°' };
   /** keyvalue-Pipe soll die Reihenfolge der Definition behalten */
   keep = () => 0;
 
