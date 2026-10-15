@@ -1,0 +1,129 @@
+# Minecraft Server Neo – Betrieb auf dem vServer (Komodo-Stack aus diesem Repo)
+#
+# Unterschiede zur lokalen docker-compose.yml:
+#  - Website hängt per Labels am vorhandenen Traefik (HTTPS über Let's Encrypt), keine eigenen Web-Ports
+#  - öffentlich nur Minecraft (25565); Karte nur über die Website (Login), RCON/API/Steuerdienst bleiben intern
+#  - alle Daten in benannten Volumes – überleben Neu-Deploys und Git-Updates des Repos
+#
+# Variablen (in Komodo unter "Environment" eintragen, siehe .env.server.example):
+#   DOMAIN, TRAEFIK_NETWORK, TRAEFIK_ENTRYPOINT, TRAEFIK_CERTRESOLVER, MC_MEMORY,
+#   RCON_PASSWORD, CONTROL_TOKEN, DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_GUILD_ID
+
+services:
+  # Legt beim allerersten Start die Mod-Liste aus der Vorlage an (danach verwaltet sie die Website)
+  init:
+    image: alpine:3.22
+    command: ["sh", "-c", "[ -f /server/modrinth-projects.txt ] || cp /defaults/modrinth-projects.example.txt /server/modrinth-projects.txt"]
+    volumes:
+      - neo-modlist:/server
+      - ./server/modrinth-projects.example.txt:/defaults/modrinth-projects.example.txt:ro
+    restart: "no"
+
+  mc:
+    image: itzg/minecraft-server:latest
+    container_name: mc-neo
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    environment:
+      # Mojang-EULA: https://aka.ms/MinecraftEULA
+      EULA: "TRUE"
+      TYPE: FABRIC
+      VERSION: "26.3"
+      MEMORY: ${MC_MEMORY:-6G}
+      TZ: Europe/Berlin
+      # Server-Mods: verwaltet die Website (Admin → Mods)
+      MODRINTH_PROJECTS: "@/neo/modrinth-projects.txt"
+      MOTD: "Neo – Survival"
+      MODE: survival
+      DIFFICULTY: normal
+      VIEW_DISTANCE: 12
+      SIMULATION_DISTANCE: 10
+      ONLINE_MODE: "TRUE"
+      # Whitelist an/aus über die Website; nicht gelistete Spieler werden gekickt
+      ENFORCE_WHITELIST: "TRUE"
+      ENABLE_RCON: "TRUE"
+      RCON_PASSWORD: ${RCON_PASSWORD:?RCON_PASSWORD fehlt}
+      BROADCAST_RCON_TO_OPS: "FALSE"
+    ports:
+      - "25565:25565"              # Minecraft – das Einzige, was direkt öffentlich ist
+    volumes:
+      - mc-data:/data
+      - neo-modlist:/neo:ro
+    restart: unless-stopped
+
+  api:
+    build: ./api
+    container_name: neo-api
+    environment:
+      TZ: Europe/Berlin
+      PUBLIC_URL: https://${DOMAIN:?DOMAIN fehlt}
+      RCON_HOST: mc
+      RCON_PORT: "25575"
+      RCON_PASSWORD: ${RCON_PASSWORD}
+      CONTROL_URL: http://control:4000
+      CONTROL_TOKEN: ${CONTROL_TOKEN:?CONTROL_TOKEN fehlt}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:?DISCORD_CLIENT_ID fehlt}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:?DISCORD_CLIENT_SECRET fehlt}
+      DISCORD_GUILD_ID: ${DISCORD_GUILD_ID:-}
+      MODS_FILE: /server/modrinth-projects.txt
+    volumes:
+      - neo-data:/app/data            # Website-Datenbank, Schematics, Projektbilder
+      - neo-backups:/backups
+      - neo-modlist:/server
+      - mc-data:/mc:ro
+    depends_on:
+      mc:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Einziger Dienst mit Docker-Zugriff (Start/Stopp/Restore des Minecraft-Containers). Nicht von außen erreichbar.
+  control:
+    build: ./control
+    container_name: neo-control
+    environment:
+      CONTROL_TOKEN: ${CONTROL_TOKEN}
+      MC_CONTAINER: mc-neo
+      TZ: Europe/Berlin
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - mc-data:/mc
+      - neo-backups:/backups:ro
+    restart: unless-stopped
+
+  web:
+    build: ./web
+    container_name: neo-web
+    volumes:
+      - neo-items:/usr/share/nginx/html/items:ro
+    depends_on:
+      - api
+    networks:
+      - default
+      - proxy
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: ${TRAEFIK_NETWORK:-proxy}
+      traefik.http.routers.neo.rule: Host(`${DOMAIN}`) || Host(`www.${DOMAIN}`)
+      traefik.http.routers.neo.entrypoints: ${TRAEFIK_ENTRYPOINT:-websecure}
+      traefik.http.routers.neo.tls: "true"
+      traefik.http.routers.neo.tls.certresolver: ${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      traefik.http.routers.neo.middlewares: neo-www
+      # www.… → Hauptadresse
+      traefik.http.middlewares.neo-www.redirectregex.regex: ^https://www\.(.+)
+      traefik.http.middlewares.neo-www.redirectregex.replacement: https://$${1}
+      traefik.http.middlewares.neo-www.redirectregex.permanent: "true"
+      traefik.http.services.neo.loadbalancer.server.port: "80"
+    restart: unless-stopped
+
+networks:
+  proxy:
+    external: true
+    name: ${TRAEFIK_NETWORK:-proxy}
+
+volumes:
+  mc-data:
+  neo-data:
+  neo-backups:
+  neo-modlist:
+  neo-items:

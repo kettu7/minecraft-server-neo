@@ -1,0 +1,7 @@
+{
+  "name": "neo-control",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Steuerdienst: Minecraft-Container starten/stoppen und Welt zurückspielen",
+  "type": "module"
+}

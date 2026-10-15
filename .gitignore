@@ -1,0 +1,17 @@
+node_modules/
+api/data/
+web/dist/
+web/.angular/
+backups/
+.claude/settings.local.json
+.env
+.cache/
+web/public/items/
+server/modrinth-projects.txt
+server/modrinth-projects.txt.tmp
+api/test/.data/
+web/demo/out/
+web/demo/map.png
+# Testdaten: nur das selbst erzeugte Beispiel einchecken (fremde Bauten nicht weiterverteilen)
+testdaten/*
+!testdaten/beispiel-haus.litematic

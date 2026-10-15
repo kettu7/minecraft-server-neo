@@ -1,0 +1,15 @@
+# Minecraft Server Neo – Server-Mods (Startliste)
+# start.cmd kopiert diese Datei beim ersten Start nach modrinth-projects.txt.
+# Danach verwaltet die Website die Liste (Admin → Mods) und trägt feste Versionen ein.
+# Format: <slug oder Projekt-ID>[:<Versions-ID>], eine Zeile pro Mod, # für Kommentare
+
+# Basis für fast alle Fabric-Mods
+fabric-api
+# Performance (Spiellogik), verhält sich wie Vanilla
+lithium
+# weniger RAM-Verbrauch
+ferrite-core
+# Welt vorgenerieren (/chunky)
+chunky
+# 3D-Karte im Browser (Port 8100)
+bluemap

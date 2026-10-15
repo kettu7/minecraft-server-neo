@@ -1,0 +1,102 @@
+# Minecraft Server Neo – Server, Karte, API und Website
+# Start:  docker compose up -d --build     (oder Doppelklick auf start.cmd)
+# Logs:   docker compose logs -f mc        (bzw. api, web)
+# Stopp:  docker compose down
+
+services:
+  mc:
+    image: itzg/minecraft-server:latest
+    container_name: mc-neo
+    environment:
+      # Mojang-EULA: https://aka.ms/MinecraftEULA
+      # Erst nach dem Lesen selbst auf "TRUE" setzen, sonst startet der Server nicht.
+      EULA: "TRUE"
+
+      TYPE: FABRIC
+      VERSION: "26.3"
+      MEMORY: 6G
+      TZ: Europe/Berlin
+
+      # Server-Mods: Die Liste verwaltet die Website (Admin → Mods) in server/modrinth-projects.txt,
+      # mit fester Version je Mod. Der Server lädt sie bei jedem Start von Modrinth.
+      # Fehlt die Datei, legt start.cmd sie aus server/modrinth-projects.example.txt an.
+      MODRINTH_PROJECTS: "@/neo/modrinth-projects.txt"
+
+      # Spiel
+      MOTD: "Neo – Survival"
+      MODE: survival
+      DIFFICULTY: normal
+      VIEW_DISTANCE: 12
+      SIMULATION_DISTANCE: 10
+      ONLINE_MODE: "TRUE"
+
+      # Whitelist: An/Aus wird über die Website gesteuert (Admin → Server) und bleibt über Neustarts erhalten.
+      # Deshalb hier bewusst KEIN ENABLE_WHITELIST. Ist sie an, werden nicht gelistete Spieler sofort gekickt.
+      ENFORCE_WHITELIST: "TRUE"
+
+      # RCON: Die Website fragt darüber den Baufortschritt ab. Passwort steht in .env
+      ENABLE_RCON: "TRUE"
+      RCON_PASSWORD: ${RCON_PASSWORD:?RCON_PASSWORD fehlt in .env}
+      # Befehle der Website (save-off, whitelist …) nicht als graue Chatzeilen an OPs schicken
+      BROADCAST_RCON_TO_OPS: "FALSE"
+
+    ports:
+      # Nur lokal erreichbar. Für Freunde im Heimnetz "127.0.0.1:" entfernen.
+      - "127.0.0.1:25565:25565"   # Minecraft
+      - "127.0.0.1:8100:8100"     # BlueMap
+      - "127.0.0.1:25575:25575"   # RCON – bleibt immer lokal!
+    volumes:
+      - mc-data:/data
+      - ./server:/neo:ro              # Mod-Liste (schreibt nur die API)
+    restart: unless-stopped
+
+  # API: Projekte, Lager, Konten, Backups. Nur intern erreichbar (über die Website unter /api).
+  api:
+    build: ./api
+    container_name: neo-api
+    env_file: .env
+    environment:
+      TZ: Europe/Berlin
+      RCON_HOST: mc
+      RCON_PORT: "25575"
+      CONTROL_URL: http://control:4000
+      MODS_FILE: /server/modrinth-projects.txt
+    volumes:
+      - ./server:/server              # Mod-Liste für den Server (Admin → Mods)
+      - ./api/data:/app/data          # Website-Datenbank + Schematics
+      - ./backups:/backups            # Backups (auch vom PC aus erreichbar)
+      - mc-data:/mc:ro                # Welt nur lesend (für Backups und Bannliste)
+    depends_on:
+      mc:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Steuerdienst: einziger Dienst mit Docker-Zugriff. Kann nur den Minecraft-Container
+  # starten/stoppen/neu starten und dessen Welt aus einem Backup zurückspielen. Nicht von außen erreichbar.
+  control:
+    build: ./control
+    container_name: neo-control
+    environment:
+      CONTROL_TOKEN: ${CONTROL_TOKEN:?CONTROL_TOKEN fehlt in .env}
+      MC_CONTAINER: mc-neo
+      TZ: Europe/Berlin
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - mc-data:/mc                   # schreibend – nur für das Zurückspielen
+      - ./backups:/backups:ro
+    restart: unless-stopped
+
+  # Website (nginx): liefert die Angular-App aus und leitet /api an die API weiter
+  web:
+    build: ./web
+    container_name: neo-web
+    ports:
+      - "127.0.0.1:4200:80"
+    volumes:
+      - ./web/public/items:/usr/share/nginx/html/items:ro   # Item-Bibliothek (npm run items)
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  mc-data:
