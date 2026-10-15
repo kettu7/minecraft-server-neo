@@ -8,15 +8,16 @@ import {
 import { ItemIcon, ItemLanguageSwitch, ItemLibrary } from './items';
 import { AuthService } from './auth';
 import { ProjectImage } from './project-image';
+import { Icon } from './icon';
 
 /** Seite lädt sich regelmäßig neu, damit die automatische Aktualisierung sichtbar wird */
 const POLL_MS = 30_000;
 
 @Component({
   selector: 'app-project-detail',
-  imports: [RouterLink, DecimalPipe, PercentPipe, KeyValuePipe, ItemIcon, ItemLanguageSwitch, ProjectImage],
+  imports: [RouterLink, DecimalPipe, PercentPipe, KeyValuePipe, ItemIcon, ItemLanguageSwitch, ProjectImage, Icon],
   template: `
-    <a routerLink="/" class="back">← Alle Projekte</a>
+    <a routerLink="/" class="back"><app-icon name="arrow-left" [size]="14" />Alle Projekte</a>
 
     @if (project(); as p) {
       <header class="detail-head">
@@ -90,7 +91,7 @@ const POLL_MS = 30_000;
       <section class="card">
         <div class="project-head">
           <h3>Lager</h3>
-          <a routerLink="/lager" class="hint">Lager verwalten →</a>
+          <a routerLink="/lager" class="hint more-link">Lager verwalten<app-icon name="arrow-right" [size]="14" /></a>
         </div>
         @if (!allStorages().length) {
           <p class="hint">Es gibt noch keine Lager. <a routerLink="/lager">Jetzt eins anlegen</a>.</p>
@@ -217,7 +218,7 @@ const POLL_MS = 30_000;
                   </td>
                 </tr>
               } @empty {
-                <tr class="empty"><td colspan="7">{{ filter() === 'missing' ? 'Nichts fehlt – ran ans Bauen! 🎉' : 'Keine Materialien in dieser Ansicht.' }}</td></tr>
+                <tr class="empty"><td colspan="7">@if (filter() === 'missing') { <span class="with-icon"><app-icon name="confetti" [size]="18" />Nichts fehlt – ran ans Bauen!</span> } @else { Keine Materialien in dieser Ansicht. }</td></tr>
               }
             </tbody>
           </table>

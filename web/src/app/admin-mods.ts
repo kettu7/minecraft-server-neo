@@ -4,6 +4,7 @@ import { DecimalPipe } from '@angular/common';
 import { firstValueFrom } from 'rxjs';
 import { AdminNav } from './admin-backups';
 import { errorMessage, formatDate } from './projects.service';
+import { Icon } from './icon';
 
 export type Side = 'required' | 'optional' | 'unsupported' | 'unknown';
 interface VersionRef { id: string; number: string; type: string; published: string }
@@ -144,15 +145,12 @@ const CHANGE_LABELS: Record<ModChange['kind'], string> = {
 
 @Component({
   selector: 'app-admin-mods',
-  imports: [AdminNav, DecimalPipe],
+  imports: [AdminNav, DecimalPipe, Icon],
   template: `
     <header class="page-head">
       <span class="eyebrow">Admin</span>
       <h1>Mods</h1>
-      <p class="hint">
-        Server-Mods von Modrinth – hinzufügen, deaktivieren (auch zum Testen), aktualisieren. Änderungen sind erst
-        geplant und werden mit „Übernehmen“ wirksam: Backup, Warnung im Chat, Neustart.
-      </p>
+      <p class="hint">Server-Mods von Modrinth. Änderungen werden mit „Übernehmen“ wirksam.</p>
     </header>
 
     <app-admin-nav />
@@ -213,7 +211,7 @@ const CHANGE_LABELS: Record<ModChange['kind'], string> = {
               @for (c of d.pending; track c.projectId + c.kind) {
                 <span class="change" [attr.data-kind]="c.kind">
                   <b>{{ changeLabel(c) }}</b> {{ c.title }}
-                  @if (c.kind === 'version') { <span class="mono">{{ c.from }} → {{ c.to }}</span> }
+                  @if (c.kind === 'version') { <span class="mono with-icon">{{ c.from }}<app-icon name="arrow-right" [size]="12" />{{ c.to }}</span> }
                 </span>
               }
             </div>
@@ -234,7 +232,7 @@ const CHANGE_LABELS: Record<ModChange['kind'], string> = {
         <section class="card apply-result" [class.failed]="!d.apply!.ok">
           <div class="project-head">
             <strong>
-              @if (d.apply!.ok) { ✅ Änderungen übernommen } @else if (d.apply!.error) { ⚠️ Übernehmen fehlgeschlagen } @else { ⚠️ Übernommen, mit Hinweisen }
+              <span class="with-icon"><app-icon [name]="d.apply!.ok ? 'circle-check' : 'alert-triangle'" [size]="18" />{{ d.apply!.ok ? 'Änderungen übernommen' : d.apply!.error ? 'Übernehmen fehlgeschlagen' : 'Übernommen, mit Hinweisen' }}</span>
             </strong>
             <button type="button" class="link" (click)="dismissedResult.set(true)">ausblenden</button>
           </div>
@@ -266,7 +264,7 @@ const CHANGE_LABELS: Record<ModChange['kind'], string> = {
             <button type="button" class="secondary compact" (click)="load(true)" [disabled]="loading()">
               {{ loading() ? 'Prüfe …' : 'Jetzt prüfen' }}
             </button>
-            <button type="button" class="compact" (click)="openSearch()" [disabled]="running()">+ Mod hinzufügen</button>
+            <button type="button" class="compact with-icon" (click)="openSearch()" [disabled]="running()"><app-icon name="plus" [size]="14" [stroke]="2.5" />Mod hinzufügen</button>
           </div>
         </header>
 
@@ -295,7 +293,7 @@ const CHANGE_LABELS: Record<ModChange['kind'], string> = {
                       <div class="item-text">
                         <a class="mod-title" [href]="m.url" target="_blank" rel="noopener noreferrer">{{ m.title }}</a>
                         <span class="mod-desc">{{ m.description }}</span>
-                        @if (m.note) { <span class="mod-note">📝 {{ m.note }}</span> }
+                        @if (m.note) { <span class="mod-note with-icon"><app-icon name="note" [size]="14" />{{ m.note }}</span> }
                         @if (m.requiresTitles.length || m.requiredBy.length || m.auto) {
                           <span class="mod-deps">
                             @if (m.requiresTitles.length) {
@@ -324,7 +322,7 @@ const CHANGE_LABELS: Record<ModChange['kind'], string> = {
                       @if (m.update && m.update.id !== m.versionId) {
                         <button type="button" class="update-btn" (click)="updateMod(m)" [disabled]="busy() || running()"
                                 [title]="'Auf ' + m.update.number + ' aktualisieren (veröffentlicht ' + date(m.update.published) + ')'">
-                          ↑ {{ m.update.number }}
+                          <app-icon name="arrow-up" [size]="13" />{{ m.update.number }}
                         </button>
                       }
                     </div>
@@ -344,8 +342,8 @@ const CHANGE_LABELS: Record<ModChange['kind'], string> = {
                   </td>
                   <td class="actions-col">
                     <div class="row-actions">
-                      <button type="button" class="icon-btn" (click)="editNote(m)" [disabled]="busy() || running()" title="Notiz">📝</button>
-                      <button type="button" class="icon-btn danger" (click)="remove(m)" [disabled]="busy() || running()" title="Aus der Liste entfernen">✕</button>
+                      <button type="button" class="icon-btn" (click)="editNote(m)" [disabled]="busy() || running()" title="Notiz"><app-icon name="pencil" /></button>
+                      <button type="button" class="icon-btn danger" (click)="remove(m)" [disabled]="busy() || running()" title="Aus der Liste entfernen"><app-icon name="x" [size]="16" /></button>
                     </div>
                   </td>
                 </tr>
@@ -448,7 +446,7 @@ const CHANGE_LABELS: Record<ModChange['kind'], string> = {
             <h2>Mod hinzufügen</h2>
             <p class="hint">Fabric-Mods von Modrinth für Minecraft {{ data()?.minecraft?.version }}, die auf dem Server laufen.</p>
           </div>
-          <button type="button" class="icon-btn" (click)="searchDialog.close()" title="Schließen">✕</button>
+          <button type="button" class="icon-btn" (click)="searchDialog.close()" title="Schließen"><app-icon name="x" [size]="18" /></button>
         </header>
         <input #searchInput type="search" placeholder="z. B. Graves, Ledger, Voice Chat …" (input)="onSearch(searchInput.value)"
                aria-label="Mods suchen" />
@@ -462,7 +460,7 @@ const CHANGE_LABELS: Record<ModChange['kind'], string> = {
                 <a class="mod-title" [href]="h.url" target="_blank" rel="noopener noreferrer">{{ h.title }}</a>
                 <span class="mod-desc">{{ h.description }}</span>
                 <span class="mod-deps">
-                  <span>⬇ <b>{{ h.downloads | number }}</b></span>
+                  <span class="with-icon"><app-icon name="download" [size]="13" /><b>{{ h.downloads | number }}</b></span>
                   <span class="side" [attr.data-side]="sideOf(h.clientSide, h.serverSide)">{{ sideLabelOf(h.clientSide, h.serverSide) }}</span>
                 </span>
               </div>

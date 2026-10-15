@@ -4,6 +4,7 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
 import { DecimalPipe } from '@angular/common';
 import { firstValueFrom } from 'rxjs';
 import { errorMessage } from './projects.service';
+import { Icon } from './icon';
 
 export interface Backup {
   id: string;
@@ -65,15 +66,12 @@ const POLL_MS = 15_000;
 
 @Component({
   selector: 'app-admin-backups',
-  imports: [AdminNav, DecimalPipe],
+  imports: [AdminNav, DecimalPipe, Icon],
   template: `
     <header class="page-head">
       <span class="eyebrow">Admin</span>
       <h1>Backups</h1>
-      <p class="hint">
-        Gesichert werden Welt, Server-Einstellungen (Whitelist, OPs, Bans, Mod-Configs) und die Website-Daten.
-        Die Karte wird nicht gesichert, sie lässt sich neu berechnen.
-      </p>
+      <p class="hint">Welt, Einstellungen und Website-Daten – automatisch jede Stunde.</p>
     </header>
 
     <app-admin-nav />
@@ -103,7 +101,7 @@ const POLL_MS = 15_000;
     }
 
     <div class="toolbar">
-      <span class="hint">📌 Angepinnte Backups werden nie automatisch gelöscht – z. B. vor großen Umbauten.</span>
+      <span class="hint with-icon"><app-icon name="pin" [size]="14" />Angepinnte Backups werden nicht automatisch gelöscht.</span>
       <button (click)="create()" [disabled]="busy() || status()?.running">{{ creating() ? 'Sichere …' : 'Jetzt sichern' }}</button>
     </div>
 
@@ -120,7 +118,7 @@ const POLL_MS = 15_000;
           <tr [class.covered]="b.pinned">
             <td>
               <strong>{{ date(b.createdAt) }}</strong>
-              @if (b.pinned) { <span title="angepinnt"> 📌</span> }
+              @if (b.pinned) { <app-icon class="pin-mark" name="pinned-filled" [size]="14" label="angepinnt" /> }
               <div class="hint mono">{{ b.id }}</div>
             </td>
             <td>

@@ -70,9 +70,6 @@ const PIN_STYLE = `
       <div class="legend">
         <span><i class="swatch project"></i>Bauprojekte ({{ projectCount() }})</span>
         <span><i class="swatch storage"></i>Lager ({{ storages().length }})</span>
-        @if (!demo) {
-          <span class="hint">Symbol anklicken öffnet die Detailseite · ein-/ausblenden im Kartenmenü unter „Marker“</span>
-        }
       </div>
     </header>
     <div class="map-frame">

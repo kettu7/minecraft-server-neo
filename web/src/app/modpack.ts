@@ -105,10 +105,7 @@ const SEEN_KEY = 'neo.modpackVersion';
     <header class="page-head">
       <span class="eyebrow">Für Spieler</span>
       <h1>Modpack</h1>
-      <p class="hint">
-        Alle Mods, die du für Neo brauchst – in passender Version, mit einem Klick installiert.
-        So haben alle dieselbe Basis.
-      </p>
+      <p class="hint">Alle Mods für Neo in einem Paket.</p>
     </header>
 
     @if (error()) { <p class="error">{{ error() }}</p> }

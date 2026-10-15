@@ -7,7 +7,8 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "demo": "node demo/build-demo.mjs"
+    "demo": "node demo/build-demo.mjs",
+    "icons": "node scripts/build-icons.mjs"
   },
   "private": true,
   "packageManager": "npm@11.19.0",
@@ -27,6 +28,7 @@
     "@angular/build": "^22.2.2",
     "@angular/cli": "^22.2.2",
     "@angular/compiler-cli": "^22.2.0",
+    "@tabler/icons": "^3.49.0",
     "prettier": "^3.8.1",
     "typescript": "~6.0.2"
   }

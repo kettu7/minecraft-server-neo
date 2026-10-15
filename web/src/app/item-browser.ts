@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { ItemIcon, ItemLanguageSwitch, ItemLibrary } from './items';
+import { Icon } from './icon';
 
 @Component({
   selector: 'app-item-browser',
@@ -9,10 +10,7 @@ import { ItemIcon, ItemLanguageSwitch, ItemLibrary } from './items';
     <header class="page-head">
       <span class="eyebrow">Nachschlagewerk</span>
       <h1>Item-Bibliothek</h1>
-      <p class="hint">
-        Alle {{ library.items().length | number }} Items aus Minecraft, mit Bild und ID – z. B. zum Nachschlagen
-        für Befehle. Ein Klick kopiert die ID.
-      </p>
+      <p class="hint">Alle {{ library.items().length | number }} Items aus Minecraft.</p>
     </header>
 
     <section class="browser">
@@ -36,7 +34,7 @@ import { ItemIcon, ItemLanguageSwitch, ItemLibrary } from './items';
               <button class="item-tile" (click)="copy(i.id)" [title]="'minecraft:' + i.id">
                 <app-item-icon [item]="i.id" [size]="48" />
                 <span class="item-name">{{ library.name(i.id) }}</span>
-                <span class="hint mono">{{ copied() === i.id ? 'kopiert ✓' : i.id }}</span>
+                <span class="hint mono">{{ copied() === i.id ? 'kopiert' : i.id }}</span>
               </button>
             </li>
           }

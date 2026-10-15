@@ -7,15 +7,16 @@ import {
 } from './projects.service';
 import { ItemIcon, ItemLanguageSwitch, ItemLibrary } from './items';
 import { AuthService } from './auth';
+import { Icon } from './icon';
 
 /** Seite lädt sich regelmäßig neu, damit die automatische Aktualisierung sichtbar wird */
 const POLL_MS = 30_000;
 
 @Component({
   selector: 'app-storage-detail',
-  imports: [RouterLink, DecimalPipe, StorageForm, ItemIcon, ItemLanguageSwitch],
+  imports: [RouterLink, DecimalPipe, StorageForm, ItemIcon, ItemLanguageSwitch, Icon],
   template: `
-    <a routerLink="/lager" class="back">← Alle Lager</a>
+    <a routerLink="/lager" class="back"><app-icon name="arrow-left" [size]="14" />Alle Lager</a>
 
     @if (storage(); as s) {
       <header class="detail-head">

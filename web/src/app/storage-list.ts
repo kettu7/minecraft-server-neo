@@ -11,10 +11,7 @@ import { StorageInput, StorageSummary, StoragesService, errorMessage, formatDate
     <header class="page-head">
       <span class="eyebrow">Gespiegelt aus der Welt</span>
       <h1>Lager</h1>
-      <p class="hint">
-        Jedes Lager ist ein Bereich in der Welt. Kisten, Fässer und Shulkerkisten darin werden automatisch
-        gefunden und ihr Inhalt hier angezeigt.
-      </p>
+      <p class="hint">Kisten, Fässer und Shulker aus der Welt.</p>
     </header>
 
     <section>

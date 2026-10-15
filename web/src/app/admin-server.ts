@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { AdminNav } from './admin-backups';
 import { errorMessage } from './projects.service';
+import { Icon } from './icon';
 
 export interface ServerInfo {
   controlAvailable: boolean;
@@ -29,12 +30,12 @@ const POLL_MS = 5_000;
 
 @Component({
   selector: 'app-admin-server',
-  imports: [AdminNav],
+  imports: [AdminNav, Icon],
   template: `
     <header class="page-head">
       <span class="eyebrow">Admin</span>
       <h1>Server</h1>
-      <p class="hint">Status, Spieler, Whitelist und Ansagen. Aktionen wirken sofort im Spiel.</p>
+      <p class="hint">Status, Spieler und Whitelist.</p>
     </header>
 
     <app-admin-nav />
@@ -77,13 +78,13 @@ const POLL_MS = 5_000;
           <div class="connect-row">
             <span class="hint">Adresse</span>
             <code class="connect-value">{{ i.address.host }}</code>
-            <button type="button" class="secondary compact" (click)="copy(i.address.host)">{{ copied() === i.address.host ? 'Kopiert ✓' : 'Kopieren' }}</button>
+            <button type="button" class="secondary compact with-icon" (click)="copy(i.address.host)"><app-icon [name]="copied() === i.address.host ? 'check' : 'copy'" [size]="14" />{{ copied() === i.address.host ? 'Kopiert' : 'Kopieren' }}</button>
           </div>
           @if (i.address.ip && i.address.ip !== i.address.host) {
             <div class="connect-row">
               <span class="hint">IP</span>
               <code class="connect-value">{{ i.address.ip }}</code>
-              <button type="button" class="secondary compact" (click)="copy(i.address.ip)">{{ copied() === i.address.ip ? 'Kopiert ✓' : 'Kopieren' }}</button>
+              <button type="button" class="secondary compact with-icon" (click)="copy(i.address.ip)"><app-icon [name]="copied() === i.address.ip ? 'check' : 'copy'" [size]="14" />{{ copied() === i.address.ip ? 'Kopiert' : 'Kopieren' }}</button>
             </div>
           }
         </div>

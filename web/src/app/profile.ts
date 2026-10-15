@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService, ROLE_LABELS } from './auth';
 import { errorMessage } from './projects.service';
+import { Icon } from './icon';
 
 /**
  * Eigenes Profil: Minecraft-Name für die Whitelist.
@@ -9,16 +10,14 @@ import { errorMessage } from './projects.service';
  */
 @Component({
   selector: 'app-profile',
+  imports: [Icon],
   template: `
     @if (auth.me(); as me) {
       <header class="page-head">
         <span class="eyebrow">{{ pending() ? 'Fast geschafft' : 'Dein Konto' }}</span>
         <h1>{{ pending() ? 'Warte auf Freischaltung' : 'Profil' }}</h1>
         @if (pending()) {
-          <p class="hint">
-            Dein Konto ist angelegt. Ein Admin schaltet dich frei – trag schon mal deinen Minecraft-Namen ein,
-            dann landest du nach der Freischaltung automatisch auf der Whitelist.
-          </p>
+          <p class="hint">Ein Admin schaltet dich frei. Trag schon mal deinen Minecraft-Namen ein.</p>
         }
       </header>
 
@@ -31,7 +30,7 @@ import { errorMessage } from './projects.service';
           }
           <div>
             <strong>{{ me.displayName }}</strong>
-            <span class="hint">&#64;{{ me.username }} · <span class="role" [attr.data-role]="me.isOwner ? 'owner' : me.role">{{ me.isOwner ? '👑 Inhaber' : roles[me.role] }}</span></span>
+            <span class="hint">&#64;{{ me.username }} · <span class="role with-icon" [attr.data-role]="me.isOwner ? 'owner' : me.role">@if (me.isOwner) { <app-icon name="crown-filled" [size]="14" />Inhaber } @else { {{ roles[me.role] }} }</span></span>
           </div>
         </div>
 
@@ -48,7 +47,7 @@ import { errorMessage } from './projects.service';
         } @else if (me.whitelistError) {
           <p class="error">Whitelist: {{ me.whitelistError }}</p>
         } @else if (me.whitelisted) {
-          <p class="ok">✓ {{ me.minecraftName }} steht auf der Whitelist.</p>
+          <p class="ok with-icon"><app-icon name="circle-check" [size]="16" />{{ me.minecraftName }} steht auf der Whitelist.</p>
         } @else if (me.minecraftName && pending()) {
           <p class="hint">Wird nach der Freischaltung auf die Whitelist gesetzt.</p>
         }

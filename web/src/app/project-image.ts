@@ -1,5 +1,6 @@
 import { Component, HostListener, inject, input, output, signal } from '@angular/core';
 import { ProjectsService, errorMessage, imageFromTransfer } from './projects.service';
+import { Icon } from './icon';
 
 /**
  * Projektbild auf der Detailseite: hochladen, aus der Zwischenablage einfügen (Strg+V oder Knopf),
@@ -7,6 +8,7 @@ import { ProjectsService, errorMessage, imageFromTransfer } from './projects.ser
  */
 @Component({
   selector: 'app-project-image',
+  imports: [Icon],
   template: `
     <section class="card project-image" [class.dragging]="dragging()" (dragover)="onDragOver($event)"
              (dragleave)="dragging.set(false)" (drop)="onDrop($event)">
@@ -16,7 +18,7 @@ import { ProjectsService, errorMessage, imageFromTransfer } from './projects.ser
         </a>
       } @else {
         <div class="project-image-empty">
-          <span class="drop-icon">🖼️</span>
+          <app-icon class="drop-icon" name="photo" [size]="32" [stroke]="1.5" />
           <strong>Noch kein Bild</strong>
           <span class="hint">Screenshot im Spiel mit <kbd>F2</kbd>, dann hier <kbd>Strg</kbd>+<kbd>V</kbd> – oder Datei hierher ziehen.</span>
         </div>

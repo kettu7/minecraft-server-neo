@@ -1,27 +1,67 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { DecimalPipe, PercentPipe } from '@angular/common';
 import { ItemIcon } from './items';
+import { Icon } from './icon';
 import { ProjectsService, ProjectSummary, errorMessage } from './projects.service';
 
 @Component({
   selector: 'app-project-list',
-  imports: [RouterLink, DecimalPipe, PercentPipe, ItemIcon],
+  imports: [RouterLink, DecimalPipe, PercentPipe, ItemIcon, Icon],
   template: `
     <header class="page-head">
-      <span class="eyebrow">Minecraft Server Neo</span>
+      <span class="eyebrow">Gemeinsam bauen</span>
       <h1>Bauprojekte</h1>
-      <p class="hint">
-        Blaupausen hochladen, Material im Lager sammeln und den Baufortschritt live verfolgen –
-        alles direkt aus eurer Welt gespiegelt.
-      </p>
+      <p class="hint">Blaupausen, Material und Baufortschritt im Blick.</p>
     </header>
+
+    <!-- Neues Bauprojekt: erst nur der Button, ein Klick klappt das Formular auf -->
+    <div class="create-panel" [class.open]="createOpen()">
+      <button type="button" class="wide-button with-icon" (click)="openCreate()" [attr.aria-expanded]="createOpen()"
+              [attr.tabindex]="createOpen() ? -1 : null">
+        <app-icon name="plus" [size]="18" [stroke]="2.5" />Neues Bauprojekt anlegen
+      </button>
+      <div class="create-reveal" [attr.inert]="createOpen() ? null : ''">
+        <div class="create-inner">
+        <section class="card create-card">
+          <header class="create-head">
+            <h2>Neues Bauprojekt</h2>
+            <button type="button" class="icon-btn" (click)="closeCreate()" title="Schließen" aria-label="Schließen">
+              <app-icon name="x" [size]="18" />
+            </button>
+          </header>
+          <p class="hint">
+            Bauprojekte entstehen aus Litematica-Schematics (<code>.litematic</code>). Fertige Bauten findest du z. B. bei
+            <a href="https://www.shulkr.com/" target="_blank" rel="noopener noreferrer">Shulkr</a>.
+          </p>
+          <form class="upload" (submit)="create($event, nameInput, descInput, fileInput)">
+            <label>
+              Name
+              <input #nameInput type="text" placeholder="z. B. Starterhaus (sonst Name aus der Datei)" maxlength="80" />
+            </label>
+            <label>
+              Beschreibung
+              <input #descInput type="text" placeholder="optional, z. B. Koordinaten" maxlength="200" />
+            </label>
+            <label>
+              Schematic
+              <input #fileInput type="file" accept=".litematic" required />
+            </label>
+            <button type="submit" [disabled]="busy()">{{ busy() ? 'Wird gelesen …' : 'Materialliste erstellen' }}</button>
+          </form>
+          @if (error()) {
+            <p class="error">{{ error() }}</p>
+          }
+        </section>
+        </div>
+      </div>
+    </div>
 
     <section>
       @if (loading()) {
         <p class="hint">Lade …</p>
       } @else if (!projects().length) {
-        <p class="hint">Noch keine Projekte. Lade unten die erste Schematic hoch.</p>
+        <p class="hint">Noch keine Projekte.</p>
       } @else {
         <ul class="projects">
           @for (p of projects(); track p.id) {
@@ -39,10 +79,11 @@ import { ProjectsService, ProjectSummary, errorMessage } from './projects.servic
                   <strong>{{ p.name }}</strong>
                   <span class="badge">{{ ratio(p.placed, p.required) | percent }}</span>
                 </div>
-                <p class="hint">
-                  {{ p.sizeX }}×{{ p.sizeY }}×{{ p.sizeZ }} · {{ p.required | number }} Items
-                  @if (p.description) { · {{ p.description }} }
-                </p>
+                <div class="tile-chips">
+                  <span class="chip-gray" title="Maße (Breite × Höhe × Tiefe)"><app-icon name="box" [size]="13" />{{ p.sizeX }}×{{ p.sizeY }}×{{ p.sizeZ }}</span>
+                  <span class="chip-gray" title="Items insgesamt"><app-icon name="stack-2" [size]="13" />{{ p.required | number }} Items</span>
+                </div>
+                @if (p.description) { <p class="hint project-desc">{{ p.description }}</p> }
                 <div class="mini-progress">
                   <span class="hint">Im Lager</span>
                   <div class="bar"><div [style.width.%]="ratio(p.covered, p.open) * 100"></div></div>
@@ -58,34 +99,8 @@ import { ProjectsService, ProjectSummary, errorMessage } from './projects.servic
         </ul>
       }
     </section>
-
-    <section class="card">
-      <span class="eyebrow">Neu</span>
-      <h2>Bauprojekt anlegen</h2>
-      <p class="hint">
-        Im Spiel mit Litematica speichern (<kbd>M</kbd> → Area Editor → Save Schematic) und die
-        <code>.litematic</code>-Datei hier hochladen.
-      </p>
-      <form class="upload" (submit)="create($event, nameInput, descInput, fileInput)">
-        <label>
-          Name
-          <input #nameInput type="text" placeholder="z. B. Starterhaus (sonst Name aus der Datei)" maxlength="80" />
-        </label>
-        <label>
-          Beschreibung
-          <input #descInput type="text" placeholder="optional, z. B. Koordinaten" maxlength="200" />
-        </label>
-        <label>
-          Schematic
-          <input #fileInput type="file" accept=".litematic" required />
-        </label>
-        <button type="submit" [disabled]="busy()">{{ busy() ? 'Wird gelesen …' : 'Materialliste erstellen' }}</button>
-      </form>
-      @if (error()) {
-        <p class="error">{{ error() }}</p>
-      }
-    </section>
   `,
+  host: { '(document:keydown.escape)': 'closeCreate()' },
 })
 export class ProjectList {
   private api = inject(ProjectsService);
@@ -95,6 +110,8 @@ export class ProjectList {
   loading = signal(true);
   busy = signal(false);
   error = signal('');
+  createOpen = signal(false);
+  private nameInput = viewChild<ElementRef<HTMLInputElement>>('nameInput');
 
   constructor() {
     this.load();
@@ -109,6 +126,18 @@ export class ProjectList {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  openCreate() {
+    this.createOpen.set(true);
+    // Nach dem Aufklappen ins erste Feld
+    setTimeout(() => this.nameInput()?.nativeElement.focus(), 250);
+  }
+
+  closeCreate() {
+    if (this.busy()) return;
+    this.createOpen.set(false);
+    this.error.set('');
   }
 
   ratio(part: number, total: number) {

@@ -25,11 +25,20 @@
   --built-2: #3b7bea;
   --built-glow: rgba(90, 169, 255, 0.35);
 
+  /* Textlinks: hellblau, externe Links mit Icon dahinter */
+  --link: #8cc8ff;
+  --link-hover: #b5dcff;
+  /* Tabler-Icons als Maske (Farbe = currentColor) */
+  --i-external: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 6h-6a2 2 0 0 0 -2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-6'/%3E%3Cpath d='M11 13l9 -9'/%3E%3Cpath d='M15 4h5v5'/%3E%3C/svg%3E");
+  --i-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 6l6 6l-6 6'/%3E%3C/svg%3E");
+
   --danger: #ff6b6b;
   --danger-soft: rgba(255, 107, 107, 0.12);
   --warn: #f6c35b;
 
   --radius: 16px;
+  /* Einheitliche Höhe für Eingabefelder und die Buttons daneben */
+  --control-h: 51px;
   --radius-sm: 10px;
   --shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.7);
   --font-display: "Outfit Variable", "Outfit", system-ui, sans-serif;
@@ -72,8 +81,14 @@ body::before {
 }
 
 a { color: inherit; }
-a:not([class]) { color: var(--accent); text-decoration: none; }
-a:not([class]):hover { text-decoration: underline; }
+a:not([class]), a.ext { color: var(--link); text-decoration: none; transition: color .15s; }
+a:not([class]):hover, a.ext:hover { color: var(--link-hover); text-decoration: underline; text-underline-offset: 3px; }
+/* Externe Links: Icon dahinter */
+a:not([class])[target="_blank"]::after, a.ext::after, .mod-title::after {
+  content: ""; display: inline-block; width: .8em; height: .8em; margin-left: .3em; vertical-align: -.05em;
+  background: currentColor; -webkit-mask: var(--i-external) center / contain no-repeat; mask: var(--i-external) center / contain no-repeat;
+  opacity: .75;
+}
 
 h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.01em; margin: 0; }
 h1 { font-size: clamp(1.9rem, 4vw, 2.6rem); font-weight: 800; line-height: 1.1; }
@@ -126,7 +141,8 @@ input[type=text], input[type=number], input[type=search], input[type=file], sele
   background: rgba(0, 0, 0, 0.28);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-sm);
-  padding: .55rem .75rem;
+  height: var(--control-h);
+  padding: 0 .85rem;
   box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.35);
   transition: border-color .15s, box-shadow .15s;
 }
@@ -135,6 +151,7 @@ input:focus, select:focus {
   box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.35), 0 0 0 3px var(--accent-soft);
 }
 input::placeholder { color: var(--faint); }
+input[type=file] { padding: 0 .45rem; line-height: calc(var(--control-h) - 2px); }
 input[type=file]::file-selector-button {
   font: 600 .8rem var(--font-body); color: var(--text); margin-right: .75rem; cursor: pointer;
   background: var(--glass-strong); border: 1px solid var(--glass-border); border-radius: 7px; padding: .35rem .7rem;
@@ -321,7 +338,7 @@ main > :not(router-outlet) > p { margin: 0; }
 .users select { width: auto; min-width: 9rem; }
 button.compact { padding: .5rem .75rem; font-size: .7rem; }
 button.link {
-  all: unset; cursor: pointer; color: var(--accent); text-decoration: underline; font-size: inherit; margin-left: .3rem;
+  all: unset; cursor: pointer; color: var(--link); text-decoration: underline; text-underline-offset: 3px; font-size: inherit; margin-left: .3rem;
 }
 .audit { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; font-size: .88rem; }
 .audit li { display: flex; gap: .6rem; flex-wrap: wrap; align-items: baseline; padding: .45rem 0; border-bottom: 1px solid var(--line); }
@@ -401,7 +418,10 @@ button.link {
 @media (max-width: 640px) { .upload { grid-template-columns: 1fr; } }
 
 details.card summary { cursor: pointer; font: 700 1.02rem var(--font-display); list-style: none; display: flex; gap: .5rem; align-items: center; }
-details.card summary::before { content: "▸"; color: var(--accent); transition: transform .15s; }
+details.card summary::before {
+  content: ""; width: 1em; height: 1em; background: var(--accent); transition: transform .15s;
+  -webkit-mask: var(--i-chevron) center / contain no-repeat; mask: var(--i-chevron) center / contain no-repeat;
+}
 details.card[open] summary::before { transform: rotate(90deg); }
 details.card[open] summary { margin-bottom: .75rem; }
 
@@ -660,7 +680,7 @@ main:has(> .map-page) { max-width: none; padding-bottom: 1.5rem; }
 .mod-icon.placeholder { display: inline-grid; place-items: center; color: var(--faint); font: 700 1rem var(--font-display); }
 .mod-title { font-weight: 600; color: var(--text); text-decoration: none; line-height: 1.25; width: fit-content; }
 .mod-title:hover { color: var(--accent); }
-.mod-title::after { content: " ↗"; color: var(--faint); font-size: .8em; }
+.mod-title::after { color: var(--faint); }
 .mod-desc { color: var(--muted); font-size: .8rem; line-height: 1.35; }
 .mod-deps { display: flex; gap: .3rem 1rem; flex-wrap: wrap; font-size: .74rem; color: var(--faint); margin-top: .15rem; }
 .mod-deps b { color: var(--muted); font-weight: 600; }
@@ -928,3 +948,58 @@ main:has(> .map-page) { max-width: none; padding-bottom: 1.5rem; }
   .connect-row { justify-content: start; }
   .connect-row .hint { text-align: left; }
 }
+
+/* ───────────────────────── Icons ───────────────────────── */
+.icon { display: inline-flex; flex-shrink: 0; vertical-align: -.15em; line-height: 0; }
+.icon svg { display: block; }
+button .icon, a .icon { pointer-events: none; }
+/* Text + Icon nebeneinander in Buttons und Links */
+.with-icon { display: inline-flex; align-items: center; gap: .45rem; }
+.back { display: inline-flex; align-items: center; gap: .35rem; }
+.more-link { display: inline-flex; align-items: center; gap: .3rem; text-decoration: none; }
+.more-link:hover { color: var(--text); }
+.update-btn { display: inline-flex; align-items: center; gap: .3rem; }
+.icon-btn { display: inline-grid; place-items: center; }
+.pin-mark { color: var(--warn); margin-left: .35rem; }
+.sort-arrow { opacity: .55; }
+.th-sort.active .sort-arrow { opacity: 1; }
+.role.with-icon { gap: .3rem; }
+.project-image-empty .drop-icon { color: var(--muted); }
+
+/* ───────────────────────── Formulare: Buttons auf Feldhöhe ───────────────────────── */
+form button[type=submit] { height: var(--control-h); padding-top: 0; padding-bottom: 0; }
+.upload button[type=submit] { align-self: end; }
+
+/* Breiter Haupt-Button (z. B. „Neues Bauprojekt anlegen“) */
+.wide-button {
+  width: 100%; height: 56px; justify-content: center; font-size: .85rem;
+  border-radius: var(--radius);
+}
+
+/* Aufklapp-Bereich unter einem breiten Button */
+.create-panel { display: grid; }
+.create-panel.open > .wide-button { display: none; }
+.create-reveal {
+  display: grid; grid-template-rows: 0fr; opacity: 0;
+  transition: grid-template-rows .35s cubic-bezier(.2, .8, .2, 1), opacity .25s ease;
+}
+.create-panel.open .create-reveal { grid-template-rows: 1fr; opacity: 1; }
+.create-inner { overflow: hidden; min-height: 0; padding: 2px; margin: -2px; }
+.create-panel.open .create-card { animation: card-in .35s cubic-bezier(.2, .8, .2, 1); }
+@keyframes card-in { from { transform: translateY(-6px) scale(.995); } }
+.create-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.create-card > .hint { margin-top: .5rem; }
+@media (prefers-reduced-motion: reduce) {
+  .create-reveal, .create-panel.open .create-card { transition: none; animation: none; }
+}
+
+/* Graue Chips in Kacheln (Maße, Anzahl …) */
+.tile-chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .55rem; }
+.chip-gray {
+  display: inline-flex; align-items: center; gap: .35rem; white-space: nowrap;
+  font: 600 .74rem/1 var(--font-body); color: var(--muted); font-variant-numeric: tabular-nums;
+  padding: .38rem .6rem; border-radius: 99px;
+  background: rgba(255, 255, 255, .055); border: 1px solid rgba(255, 255, 255, .08);
+}
+.chip-gray .icon { opacity: .8; }
+.project-desc { margin: .5rem 0 0; font-size: .82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { AdminNav } from './admin-backups';
 import { errorMessage, formatDate } from './projects.service';
 import { KIND_LABELS, ModpackService, megabytes, type PackHit, type PackKind, type PackManage, type PackMode, type PackRow } from './modpack';
+import { Icon } from './icon';
 
 type Filter = 'all' | 'in' | 'out';
 type SortKey = 'title' | 'kind' | 'version' | 'mode';
@@ -20,16 +21,12 @@ const SUGGESTIONS: Record<PackKind, string[]> = {
 
 @Component({
   selector: 'app-admin-modpack',
-  imports: [AdminNav, DecimalPipe, RouterLink],
+  imports: [AdminNav, DecimalPipe, RouterLink, Icon],
   template: `
     <header class="page-head">
       <span class="eyebrow">Admin</span>
       <h1>Modpack</h1>
-      <p class="hint">
-        Das Pack für deine Freunde: Server-Mods, die auch beim Spieler laufen müssen, kommen automatisch hinein.
-        Dazu kannst du reine Spieler-Mods, Ressourcenpakete und Shader packen – als Pflicht oder optional.
-        Änderungen gelten sofort, ohne Server-Neustart.
-      </p>
+      <p class="hint">Was Spieler installieren: nötige Server-Mods und eigene Extras.</p>
     </header>
 
     <app-admin-nav />
@@ -82,7 +79,7 @@ const SUGGESTIONS: Record<PackKind, string[]> = {
           <div class="mat-toolbar-right">
             <a class="button-link" href="/api/modpack/download" download>Download testen</a>
             <a class="button-link" routerLink="/modpack">Spieler-Seite</a>
-            <button type="button" class="compact" (click)="openSearch()">+ Hinzufügen</button>
+            <button type="button" class="compact with-icon" (click)="openSearch()"><app-icon name="plus" [size]="14" [stroke]="2.5" />Hinzufügen</button>
           </div>
         </header>
 
@@ -94,7 +91,7 @@ const SUGGESTIONS: Record<PackKind, string[]> = {
                   <th [attr.aria-sort]="sort().key === c.key ? (sort().dir === 1 ? 'ascending' : 'descending') : 'none'">
                     <button type="button" class="th-sort" [class.active]="sort().key === c.key" (click)="sortBy(c.key)">
                       {{ c.label }}
-                      <span class="sort-arrow" aria-hidden="true">{{ sort().key === c.key ? (sort().dir === 1 ? '▲' : '▼') : '↕' }}</span>
+                      <app-icon class="sort-arrow" [name]="sort().key === c.key ? (sort().dir === 1 ? 'chevron-up' : 'chevron-down') : 'selector'" [size]="13" />
                     </button>
                   </th>
                 }
@@ -111,7 +108,7 @@ const SUGGESTIONS: Record<PackKind, string[]> = {
                       <div class="item-text">
                         <a class="mod-title" [href]="r.url" target="_blank" rel="noopener noreferrer">{{ r.title }}</a>
                         <span class="mod-desc">{{ r.description }}</span>
-                        @if (r.note) { <span class="mod-note">📝 {{ r.note }}</span> }
+                        @if (r.note) { <span class="mod-note with-icon"><app-icon name="note" [size]="14" />{{ r.note }}</span> }
                         @if (r.reason || r.auto) {
                           <span class="mod-deps"><span>{{ r.reason ?? 'automatisch als Abhängigkeit' }}</span></span>
                         }
@@ -129,7 +126,7 @@ const SUGGESTIONS: Record<PackKind, string[]> = {
                       <span class="mono version">{{ r.versionNumber }}</span>
                       @if (r.update) {
                         <button type="button" class="update-btn" (click)="update(r)" [disabled]="busy()" [title]="'Auf ' + r.update.number + ' aktualisieren'">
-                          ↑ {{ r.update.number }}
+                          <app-icon name="arrow-up" [size]="13" />{{ r.update.number }}
                         </button>
                       }
                     </div>
@@ -155,8 +152,8 @@ const SUGGESTIONS: Record<PackKind, string[]> = {
                   <td class="actions-col">
                     @if (r.source === 'client') {
                       <div class="row-actions">
-                        <button type="button" class="icon-btn" (click)="editNote(r)" [disabled]="busy()" title="Notiz">📝</button>
-                        <button type="button" class="icon-btn danger" (click)="remove(r)" [disabled]="busy()" title="Aus dem Pack entfernen">✕</button>
+                        <button type="button" class="icon-btn" (click)="editNote(r)" [disabled]="busy()" title="Notiz"><app-icon name="pencil" /></button>
+                        <button type="button" class="icon-btn danger" (click)="remove(r)" [disabled]="busy()" title="Aus dem Pack entfernen"><app-icon name="x" [size]="16" /></button>
                       </div>
                     }
                   </td>
@@ -179,7 +176,7 @@ const SUGGESTIONS: Record<PackKind, string[]> = {
             <h2>Zum Modpack hinzufügen</h2>
             <p class="hint">Von Modrinth, passend zu Minecraft {{ data()?.minecraft }}. Was der Mod braucht, kommt automatisch mit.</p>
           </div>
-          <button type="button" class="icon-btn" (click)="searchDialog.close()" title="Schließen">✕</button>
+          <button type="button" class="icon-btn" (click)="searchDialog.close()" title="Schließen"><app-icon name="x" [size]="18" /></button>
         </header>
         <div class="search-head">
           <div class="segmented" role="group" aria-label="Art">
@@ -204,7 +201,7 @@ const SUGGESTIONS: Record<PackKind, string[]> = {
               <div class="item-text">
                 <a class="mod-title" [href]="h.url" target="_blank" rel="noopener noreferrer">{{ h.title }}</a>
                 <span class="mod-desc">{{ h.description }}</span>
-                <span class="mod-deps"><span>⬇ <b>{{ h.downloads | number }}</b></span></span>
+                <span class="mod-deps"><span class="with-icon"><app-icon name="download" [size]="13" /><b>{{ h.downloads | number }}</b></span></span>
               </div>
               @if (h.inList || added().has(h.projectId)) {
                 <span class="pill" data-state="covered"><i></i>Im Pack</span>

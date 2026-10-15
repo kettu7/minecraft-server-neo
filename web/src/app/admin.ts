@@ -3,18 +3,16 @@ import { KeyValuePipe } from '@angular/common';
 import { AuditEntry, AuthService, GameBan, Me, ROLE_LABELS, Role, WebsiteBan } from './auth';
 import { errorMessage, formatDate } from './projects.service';
 import { AdminNav } from './admin-backups';
+import { Icon } from './icon';
 
 @Component({
   selector: 'app-admin',
-  imports: [KeyValuePipe, AdminNav],
+  imports: [KeyValuePipe, AdminNav, Icon],
   template: `
     <header class="page-head">
       <span class="eyebrow">Admin</span>
       <h1>Benutzer & Rollen</h1>
-      <p class="hint">
-        Konten freischalten, Rollen vergeben, löschen oder bannen. Spieler und Admins mit Minecraft-Namen landen
-        automatisch auf der Whitelist. Der Inhaber 👑 ist vor Änderungen durch andere Admins geschützt.
-      </p>
+      <p class="hint">Konten, Rollen und Bans.</p>
     </header>
 
     <app-admin-nav />
@@ -47,11 +45,11 @@ import { AdminNav } from './admin-backups';
               @if (u.minecraftName) {
                 <span class="mono">{{ u.minecraftName }}</span>
                 @if (u.whitelistError) {
-                  <div class="error small" [title]="u.whitelistError">⚠ {{ u.whitelistError }}
+                  <div class="error small with-icon" [title]="u.whitelistError"><app-icon name="alert-triangle" [size]="14" />{{ u.whitelistError }}
                     <button class="link" (click)="retry(u)" [disabled]="busy()">erneut</button>
                   </div>
                 } @else if (u.whitelisted) {
-                  <div class="ok small">✓ Whitelist</div>
+                  <div class="ok small with-icon"><app-icon name="check" [size]="14" />Whitelist</div>
                 }
               } @else {
                 <span class="hint">–</span>
@@ -59,7 +57,7 @@ import { AdminNav } from './admin-backups';
             </td>
             <td>
               @if (u.isOwner) {
-                <span class="role" data-role="owner">👑 Inhaber</span>
+                <span class="role with-icon" data-role="owner"><app-icon name="crown-filled" [size]="14" />Inhaber</span>
               } @else {
                 <select [value]="u.role" (change)="setRole(u, $any($event.target).value)" [disabled]="busy()">
                   @for (r of roles | keyvalue: keep; track r.key) {
