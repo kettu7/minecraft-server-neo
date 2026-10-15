@@ -76,6 +76,7 @@ services:
       CONTROL_TOKEN: ${CONTROL_TOKEN}
       MC_CONTAINER: mc-neo
       TZ: Europe/Berlin
+      DOMAIN: ${DOMAIN}             # nur für die Traefik-Diagnose im Log
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - mc-data:/mc

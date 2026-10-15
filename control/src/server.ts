@@ -199,3 +199,100 @@ createServer(async (req, res) => {
     if (mutating) busy = false;
   }
 }).listen(4000, () => console.log(`neo-control bereit (Container: ${CONTAINER})`));
+
+/* ───────────────────────── Traefik-Diagnose (einmalig beim Start) ─────────────────────────
+   Hilft beim Einrichten von HTTPS: Gibt nur die NAMEN der Traefik-Entrypoints und Zertifikats-Resolver
+   sowie Traefik-Logzeilen zur eigenen Domain aus – keine Werte wie E-Mail, Passwörter oder Tokens.
+   Abschalten mit TRAEFIK_DIAGNOSE=0. */
+
+const TRAEFIK = process.env.TRAEFIK_CONTAINER ?? 'traefik';
+const DOMAIN = process.env.DOMAIN ?? '';
+
+function dockerRaw(path: string): Promise<{ status: number; body: Buffer }> {
+  return new Promise((resolve, reject) => {
+    const req = request({ socketPath: '/var/run/docker.sock', method: 'GET', path, timeout: 15_000 }, (res) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (c: Buffer) => chunks.push(c));
+      res.on('end', () => resolve({ status: res.statusCode ?? 0, body: Buffer.concat(chunks) }));
+    });
+    req.on('error', reject);
+    req.on('timeout', () => req.destroy(new Error('Docker antwortet nicht')));
+    req.end();
+  });
+}
+
+/** Erste Datei aus einem Tar-Archiv (Docker liefert Dateien aus Containern als Tar) */
+function firstTarFile(tar: Buffer): string | undefined {
+  if (tar.length < 512) return undefined;
+  const size = parseInt(tar.subarray(124, 136).toString().replace(/\0.*$/, '').trim(), 8);
+  return Number.isFinite(size) ? tar.subarray(512, 512 + size).toString('utf8') : undefined;
+}
+
+/** Namen direkt unter einem Abschnitt einer YAML-Datei, z. B. certificatesResolvers → [letsencrypt] */
+function yamlChildKeys(text: string, section: string): string[] {
+  const lines = text.split(/\r?\n/);
+  const start = lines.findIndex((l) => new RegExp(`^\s*${section}\s*:`, 'i').test(l));
+  if (start < 0) return [];
+  const baseIndent = lines[start].search(/\S/);
+  let childIndent = -1;
+  const keys: string[] = [];
+  for (const line of lines.slice(start + 1)) {
+    if (!line.trim() || line.trim().startsWith('#')) continue;
+    const indent = line.search(/\S/);
+    if (indent <= baseIndent) break;
+    if (childIndent < 0) childIndent = indent;
+    const m = /^\s*([A-Za-z0-9_.-]+)\s*:/.exec(line);
+    if (indent === childIndent && m) keys.push(m[1]);
+  }
+  return keys;
+}
+
+async function traefikDiagnose() {
+  if (process.env.TRAEFIK_DIAGNOSE === '0') return;
+  const log = (msg: string) => console.log(`[traefik-diagnose] ${msg}`);
+  try {
+    const { status, body } = await dockerRaw(`/containers/${encodeURIComponent(TRAEFIK)}/json`);
+    if (status !== 200) return log(`Container "${TRAEFIK}" nicht gefunden.`);
+    const info = JSON.parse(body.toString());
+    const args: string[] = [...(info.Config?.Entrypoint ?? []), ...(info.Config?.Cmd ?? []), ...(info.Args ?? [])];
+    const names = (re: RegExp) => [...new Set(args.map((a) => re.exec(a)?.[1]).filter((n): n is string => !!n))];
+    const entrypoints = names(/^--entrypoints\.([^.=]+)\./i);
+    const resolvers = names(/^--certificatesresolvers\.([^.=]+)\./i);
+    const challenges = names(/^--certificatesresolvers\.[^.=]+\.acme\.(httpchallenge|tlschallenge|dnschallenge)\b/i);
+    log(`Aus Startparametern – Entrypoints: ${entrypoints.join(', ') || '–'} | Resolver: ${resolvers.join(', ') || '–'} | Challenge: ${challenges.join(', ') || '–'}`);
+    log(`Eingebundene Pfade im Container: ${(info.Mounts ?? []).map((m: { Destination: string }) => m.Destination).join(', ') || '–'}`);
+
+    // Statische Konfigurationsdatei (falls vorhanden): nur Abschnittsnamen auslesen
+    const candidates = ['/etc/traefik/traefik.yml', '/etc/traefik/traefik.yaml', '/traefik.yml', '/traefik.yaml'];
+    for (const m of info.Mounts ?? []) {
+      if (/\.ya?ml$/i.test(m.Destination)) candidates.push(m.Destination);
+      else candidates.push(`${m.Destination}/traefik.yml`, `${m.Destination}/traefik.yaml`);
+    }
+    for (const path of [...new Set(candidates)]) {
+      const res = await dockerRaw(`/containers/${encodeURIComponent(TRAEFIK)}/archive?path=${encodeURIComponent(path)}`).catch(() => null);
+      if (res?.status !== 200) continue;
+      const text = firstTarFile(res.body);
+      if (!text) continue;
+      log(`Konfigurationsdatei ${path} – Entrypoints: ${yamlChildKeys(text, 'entryPoints').join(', ') || '–'} | Resolver: ${yamlChildKeys(text, 'certificatesResolvers').join(', ') || '–'}`);
+    }
+
+    // Traefik-Log: nur Zeilen zur eigenen Domain bzw. zu Zertifikaten
+    const logs = await dockerRaw(`/containers/${encodeURIComponent(TRAEFIK)}/logs?stdout=1&stderr=1&tail=2000`);
+    const raw = logs.body;
+    let text = '';
+    for (let i = 0; i + 8 <= raw.length && raw[i] <= 2; ) {
+      const len = raw.readUInt32BE(i + 4);
+      text += raw.subarray(i + 8, i + 8 + len).toString('utf8');
+      i += 8 + len;
+    }
+    if (!text) text = raw.toString('utf8');
+    const pattern = new RegExp(`${DOMAIN ? DOMAIN.replace(/\./g, '\.') + '|' : ''}resolver|acme|certificate`, 'i');
+    const relevant = text.split('\n').filter((l) => pattern.test(l)).slice(-15);
+    log(`Logzeilen zu Domain/Zertifikaten (${relevant.length}):`);
+    for (const line of relevant) log(`  ${line.slice(0, 400)}`);
+  } catch (err) {
+    log(`fehlgeschlagen: ${(err as Error).message}`);
+  }
+}
+
+void traefikDiagnose();
