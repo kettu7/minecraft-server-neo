@@ -45,6 +45,7 @@ services:
 
   api:
     build: ./api
+    pull_policy: build            # bei jedem Deploy neu bauen, damit Code-Updates ankommen
     container_name: neo-api
     environment:
       TZ: Europe/Berlin
@@ -71,6 +72,7 @@ services:
   # Einziger Dienst mit Docker-Zugriff (Start/Stopp/Restore des Minecraft-Containers). Nicht von außen erreichbar.
   control:
     build: ./control
+    pull_policy: build            # bei jedem Deploy neu bauen, damit Code-Updates ankommen
     container_name: neo-control
     environment:
       CONTROL_TOKEN: ${CONTROL_TOKEN}
@@ -85,6 +87,7 @@ services:
 
   web:
     build: ./web
+    pull_policy: build            # bei jedem Deploy neu bauen, damit Code-Updates ankommen
     container_name: neo-web
     volumes:
       - neo-items:/usr/share/nginx/html/items:ro
