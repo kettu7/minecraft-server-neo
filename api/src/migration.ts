@@ -140,7 +140,12 @@ export async function registerMigration(app: FastifyInstance) {
       audit(req.user!.id, 'umzugspaket hochgeladen', `${checked.id} (${Math.round(bytes / 1024 / 1024)} MB)`);
       return { ok: true, id: checked.id, bytes };
     } catch (err) {
-      return reply.code(400).send({ error: (err as Error).message });
+      const message = (err as Error).message;
+      return reply.code(400).send({
+        error: /not look like a tar|unexpected EOF|Unexpected EOF/i.test(message)
+          ? 'Das ist kein gültiges Umzugspaket (.tar) – bitte die heruntergeladene Datei unverändert hochladen.'
+          : message,
+      });
     } finally {
       await rm(tmp, { force: true });
       await rm(staging, { recursive: true, force: true });
