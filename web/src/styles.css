@@ -71,12 +71,12 @@ body {
 }
 /* Stimmungsbild: nur im oberen Bereich, läuft nach unten und zu den Seiten weich aus, scrollt mit */
 body::before {
-  content: ""; position: absolute; top: 0; left: 0; right: 0; height: min(78vh, 820px); z-index: -2; pointer-events: none;
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: min(95vh, 1000px); z-index: -2; pointer-events: none;
   background: url("/bg/bambus.jpg") center 30% / cover no-repeat;
-  opacity: .5; filter: saturate(1.1) brightness(1.05);
-  -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, .55) 45%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 22%, #000 78%, transparent 100%);
+  opacity: .35; filter: saturate(1.1) brightness(1.05);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, .8) 20%, rgba(0, 0, 0, .5) 45%, rgba(0, 0, 0, .22) 68%, rgba(0, 0, 0, .07) 85%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 22%, #000 78%, transparent 100%);
   -webkit-mask-composite: source-in;
-  mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, .55) 45%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 22%, #000 78%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, .8) 20%, rgba(0, 0, 0, .5) 45%, rgba(0, 0, 0, .22) 68%, rgba(0, 0, 0, .07) 85%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 22%, #000 78%, transparent 100%);
   mask-composite: intersect;
 }
 
@@ -1173,7 +1173,7 @@ details.card[open] summary::before { transform: rotate(180deg); }
   flex: 1 1 0; min-width: max-content; justify-content: center; height: 42px;
   padding: 0 .75rem; font-size: .72rem; letter-spacing: .05em;
 }
-.action-row.tertiary { justify-content: space-between; margin: 0 -.45rem; }
+.action-row.tertiary { justify-content: space-between; }
 .progress-meta { margin: 0; font-size: .78rem; color: var(--faint); }
 
 /* Tertiär-Button: wie ein Link, mit Icon */
@@ -1217,3 +1217,6 @@ details.card[open] summary::before { transform: rotate(180deg); }
 .pill[data-state="partial"] { background: rgba(246, 195, 91, .14) !important; }
 .pill[data-state="missing"] { background: rgba(255, 107, 107, .13) !important; }
 .pill[data-state="off"] { background: rgba(255, 255, 255, .06) !important; }
+
+/* Status-Felder immer gleich breit */
+.status-tag { box-sizing: border-box; min-width: 9.25rem; }
