@@ -11,6 +11,7 @@ export interface ServerInfo {
     | { error: string };
   players: { online: number; max: number; names: string[] } | null;
   whitelist: { enabled: boolean | null; names: string[] };
+  address: { host: string; ip: string | null };
 }
 
 @Injectable({ providedIn: 'root' })
@@ -64,6 +65,27 @@ const POLL_MS = 5_000;
         <div>
           <strong>{{ i.whitelist.enabled === null ? '–' : i.whitelist.enabled ? 'an' : 'aus' }}</strong>
           <span class="hint">Whitelist · {{ i.whitelist.names.length }} Namen</span>
+        </div>
+      </section>
+
+      <section class="card connect">
+        <div>
+          <h3>Verbinden</h3>
+          <p class="hint">Im Spiel unter Mehrspieler → Server hinzufügen eintragen. Klappt die Adresse nicht, die IP nehmen.</p>
+        </div>
+        <div class="connect-rows">
+          <div class="connect-row">
+            <span class="hint">Adresse</span>
+            <code class="connect-value">{{ i.address.host }}</code>
+            <button type="button" class="secondary compact" (click)="copy(i.address.host)">{{ copied() === i.address.host ? 'Kopiert ✓' : 'Kopieren' }}</button>
+          </div>
+          @if (i.address.ip && i.address.ip !== i.address.host) {
+            <div class="connect-row">
+              <span class="hint">IP</span>
+              <code class="connect-value">{{ i.address.ip }}</code>
+              <button type="button" class="secondary compact" (click)="copy(i.address.ip)">{{ copied() === i.address.ip ? 'Kopiert ✓' : 'Kopieren' }}</button>
+            </div>
+          }
         </div>
       </section>
 
@@ -136,6 +158,7 @@ export class AdminServer {
   protected restarting = signal(false);
   protected error = signal('');
   protected notice = signal('');
+  protected copied = signal('');
   private timer = setInterval(() => !this.busy() && this.load(), POLL_MS);
 
   protected container = computed(() => {
@@ -173,6 +196,27 @@ export class AdminServer {
       this.info.set(await this.api.info());
     } catch (err) {
       this.error.set(errorMessage(err));
+    }
+  }
+
+  async copy(text: string) {
+    const done = () => {
+      this.copied.set(text);
+      setTimeout(() => this.copied() === text && this.copied.set(''), 2000);
+    };
+    try {
+      await navigator.clipboard.writeText(text);
+      return done();
+    } catch {
+      // Ersatzweg für Browser ohne Zwischenablage-Rechte
+      const area = Object.assign(document.createElement('textarea'), { value: text });
+      area.style.cssText = 'position:fixed;opacity:0';
+      document.body.append(area);
+      area.select();
+      const ok = document.execCommand('copy');
+      area.remove();
+      if (ok) return done();
+      this.error.set('Kopieren nicht möglich – bitte von Hand markieren.');
     }
   }
 

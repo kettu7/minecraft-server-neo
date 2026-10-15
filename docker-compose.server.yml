@@ -50,6 +50,7 @@ services:
     environment:
       TZ: Europe/Berlin
       PUBLIC_URL: https://${DOMAIN:?DOMAIN fehlt}
+      MC_ADDRESS: ${DOMAIN}          # Adresse zum Verbinden (Admin → Server)
       RCON_HOST: mc
       RCON_PORT: "25575"
       RCON_PASSWORD: ${RCON_PASSWORD}

@@ -912,3 +912,19 @@ main:has(> .map-page) { max-width: none; padding-bottom: 1.5rem; }
 
 /* Backup-Art "Umzugspaket" (frühere Übernahmen) */
 .status.import { color: var(--built); background: rgba(90, 169, 255, .1); border-color: rgba(90, 169, 255, .28); }
+
+/* Admin → Server: Verbinden */
+.connect { display: grid; grid-template-columns: 1fr auto; gap: .75rem 1.5rem; align-items: center; }
+.connect .hint { margin: .3rem 0 0; }
+.connect-rows { display: grid; gap: .5rem; }
+.connect-row { display: grid; grid-template-columns: 4rem auto auto; gap: .75rem; align-items: center; justify-content: end; }
+.connect-row .hint { margin: 0; text-align: right; }
+.connect-value {
+  font-size: .95rem; padding: .45rem .7rem; border-radius: 8px; color: var(--accent);
+  background: rgba(0, 0, 0, .3); border: 1px solid var(--glass-border); user-select: all;
+}
+@media (max-width: 720px) {
+  .connect { grid-template-columns: 1fr; }
+  .connect-row { justify-content: start; }
+  .connect-row .hint { text-align: left; }
+}

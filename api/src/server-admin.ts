@@ -1,6 +1,7 @@
 // Admin → Server: Status, Whitelist an/aus, Spieler kicken/bannen, Ansagen, Neustart, Backup zurückspielen.
 // Spielbefehle laufen über RCON, Start/Stopp/Zurückspielen über den Steuerdienst neo-control.
 import { readFile } from 'node:fs/promises';
+import { lookup } from 'node:dns/promises';
 import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import { Rcon } from './rcon.ts';
@@ -12,6 +13,8 @@ import { BACKUP_ID, createBackup, setPinned } from './backup.ts';
 const CONTROL_URL = process.env.CONTROL_URL ?? '';
 const MC_DATA_DIR = process.env.MC_DATA_DIR ?? '';
 export const WARNING_SECONDS = 10;
+/** Adresse, unter der Spieler den Server erreichen (z. B. minecraft-neo.de); lokal localhost */
+const MC_ADDRESS = process.env.MC_ADDRESS ?? 'localhost';
 
 /* ───────────────────────── Hilfen ───────────────────────── */
 
@@ -78,7 +81,9 @@ export async function registerServerAdmin(app: FastifyInstance) {
       rcon('list').then(([a]) => parsePlayerList(a)).catch(() => null),
       whitelistState(),
     ]);
-    return { container, players, whitelist, controlAvailable: !!CONTROL_URL };
+    // IPv4 aus dem DNS – passt sich an, falls der Server einmal umzieht
+    const ip = await lookup(MC_ADDRESS, { family: 4 }).then((r) => r.address, () => null);
+    return { container, players, whitelist, controlAvailable: !!CONTROL_URL, address: { host: MC_ADDRESS, ip } };
   });
 
   app.post<{ Body: { enabled?: boolean } }>('/api/server/whitelist', async (req, reply) => {
