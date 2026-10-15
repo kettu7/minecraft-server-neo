@@ -10,21 +10,11 @@
 #   RCON_PASSWORD, CONTROL_TOKEN, DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_GUILD_ID
 
 services:
-  # Legt beim allerersten Start die Mod-Liste aus der Vorlage an (danach verwaltet sie die Website)
-  init:
-    image: alpine:3.22
-    command: ["sh", "-c", "[ -f /server/modrinth-projects.txt ] || cp /defaults/modrinth-projects.example.txt /server/modrinth-projects.txt"]
-    volumes:
-      - neo-modlist:/server
-      - ./server/modrinth-projects.example.txt:/defaults/modrinth-projects.example.txt:ro
-    restart: "no"
-
   mc:
     image: itzg/minecraft-server:latest
     container_name: mc-neo
-    depends_on:
-      init:
-        condition: service_completed_successfully
+    # Beim allerersten Start die Mod-Liste aus der Vorlage anlegen (danach verwaltet sie die Website), dann normal starten
+    entrypoint: ["sh", "-c", "[ -f /neo/modrinth-projects.txt ] || cp /defaults/modrinth-projects.example.txt /neo/modrinth-projects.txt; exec /start"]
     environment:
       # Mojang-EULA: https://aka.ms/MinecraftEULA
       EULA: "TRUE"
@@ -49,7 +39,8 @@ services:
       - "25565:25565"              # Minecraft – das Einzige, was direkt öffentlich ist
     volumes:
       - mc-data:/data
-      - neo-modlist:/neo:ro
+      - neo-modlist:/neo
+      - ./server/modrinth-projects.example.txt:/defaults/modrinth-projects.example.txt:ro
     restart: unless-stopped
 
   api:
