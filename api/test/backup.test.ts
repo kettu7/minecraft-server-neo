@@ -37,20 +37,3 @@ test('Backup-IDs schützen vor Pfad-Tricks', () => {
   assert.ok(!BACKUP_ID.test('../../etc'));
   assert.ok(!BACKUP_ID.test('2026-10-14_19-30-00/../x'));
 });
-
-import { checkPackageListing } from '../src/migration.ts';
-
-test('Umzugspaket: nur ein Backup-Ordner, keine Links, keine Pfade nach außen', () => {
-  const ok = [
-    'drwxr-xr-x root/root         0 2026-10-14 23:18 2026-10-14_23-18-28/',
-    '-rw-r--r-- root/root  25000000 2026-10-14 23:18 2026-10-14_23-18-28/world.tar.gz',
-    '-rw-r--r-- root/root      1234 2026-10-14 23:18 2026-10-14_23-18-28/items/stone.png',
-  ].join('\n');
-  assert.deepEqual(checkPackageListing(ok), { id: '2026-10-14_23-18-28' });
-  assert.ok('error' in checkPackageListing(ok + '\nlrwxrwxrwx root/root 0 2026-10-14 23:18 2026-10-14_23-18-28/x -> /etc/passwd'));
-  assert.ok('error' in checkPackageListing('-rw-r--r-- root/root 1 2026-10-14 23:18 2026-10-14_23-18-28/../../etc/x'));
-  assert.ok('error' in checkPackageListing('-rw-r--r-- root/root 1 2026-10-14 23:18 /etc/x'));
-  assert.ok('error' in checkPackageListing('-rw-r--r-- root/root 1 2026-10-14 23:18 irgendwas/x'));
-  assert.ok('error' in checkPackageListing(ok + '\n-rw-r--r-- root/root 1 2026-10-14 23:18 2026-10-15_00-00-00/x'));
-  assert.ok('error' in checkPackageListing(''));
-});

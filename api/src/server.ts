@@ -12,7 +12,6 @@ import { registerServerAdmin } from './server-admin.ts';
 import { registerProjectImages, removeProjectImages } from './project-images.ts';
 import { registerMods } from './mods.ts';
 import { registerModpack } from './modpack.ts';
-import { registerMigration } from './migration.ts';
 import { contentDisposition } from './download-name.ts';
 import { audit } from './users.ts';
 import {
@@ -35,7 +34,6 @@ await registerServerAdmin(app);
 await registerProjectImages(app);
 await registerMods(app);
 await registerModpack(app);
-await registerMigration(app);
 
 app.get('/api/health', async () => ({ ok: true }));
 

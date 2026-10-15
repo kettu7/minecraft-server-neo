@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
-import { existsSync, mkdirSync, renameSync, rmSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Schematic } from './litematic.ts';
 import { splitAmount } from './items.ts';
@@ -13,16 +13,7 @@ export const IMAGE_DIR = join(DATA_DIR, 'images');
 mkdirSync(SCHEMATIC_DIR, { recursive: true });
 mkdirSync(IMAGE_DIR, { recursive: true });
 
-// Umzug: Eine mitgebrachte Datenbank (neo.db.import, siehe migration.ts) ersetzt beim Start die aktuelle.
-// Die bisherige bleibt als neo.db.before-import liegen.
-const DB_FILE = join(DATA_DIR, 'neo.db');
-if (existsSync(DB_FILE + '.import')) {
-  if (existsSync(DB_FILE)) renameSync(DB_FILE, DB_FILE + '.before-import');
-  for (const suffix of ['-wal', '-shm']) rmSync(DB_FILE + suffix, { force: true });
-  renameSync(DB_FILE + '.import', DB_FILE);
-}
-
-export const db = new DatabaseSync(DB_FILE);
+export const db = new DatabaseSync(join(DATA_DIR, 'neo.db'));
 db.exec(`
   PRAGMA foreign_keys = ON;
   CREATE TABLE IF NOT EXISTS projects (

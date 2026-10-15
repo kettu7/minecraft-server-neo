@@ -61,13 +61,11 @@ services:
       RCON_PORT: "25575"
       CONTROL_URL: http://control:4000
       MODS_FILE: /server/modrinth-projects.txt
-      ITEMS_DIR: /items
     volumes:
       - ./server:/server              # Mod-Liste für den Server (Admin → Mods)
       - ./api/data:/app/data          # Website-Datenbank + Schematics
       - ./backups:/backups            # Backups (auch vom PC aus erreichbar)
       - mc-data:/mc:ro                # Welt nur lesend (für Backups und Bannliste)
-      - ./web/public/items:/items       # Item-Bibliothek (fürs Umzugspaket)
     depends_on:
       mc:
         condition: service_healthy

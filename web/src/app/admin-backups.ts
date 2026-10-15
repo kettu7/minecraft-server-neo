@@ -1,8 +1,8 @@
 import { Component, Injectable, inject, signal } from '@angular/core';
-import { HttpClient, HttpEventType } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { DecimalPipe } from '@angular/common';
-import { firstValueFrom, lastValueFrom, tap } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import { errorMessage } from './projects.service';
 
 export interface Backup {
@@ -42,21 +42,6 @@ export class BackupsService {
   }
   restore(id: string) {
     return firstValueFrom(this.http.post<{ ok: true; safetyBackup: string }>(`/api/backups/${id}/restore`, {}));
-  }
-  restoreAll(id: string) {
-    return firstValueFrom(this.http.post<{ ok: true; safetyBackup: string }>(`/api/backups/${id}/restore-all`, {}));
-  }
-  /** Umzugspaket hochladen; onProgress bekommt den Anteil 0–1 */
-  upload(file: File, onProgress: (share: number) => void) {
-    return lastValueFrom(
-      this.http
-        .put<{ ok: true; id: string }>('/api/backups/import', file, {
-          headers: { 'Content-Type': 'application/x-tar' },
-          reportProgress: true,
-          observe: 'events',
-        })
-        .pipe(tap((e) => e.type === HttpEventType.UploadProgress && e.total && onProgress(e.loaded / e.total))),
-    );
   }
 }
 
@@ -117,23 +102,6 @@ const POLL_MS = 15_000;
       }
     }
 
-    <section class="card migrate">
-      <div>
-        <h3>Umzug</h3>
-        <p class="hint">
-          Auf dem alten Server bei einem Backup <strong>„Umzugspaket“</strong> herunterladen (Welt, Website-Daten,
-          Blaupausen, Bilder und Item-Bibliothek in einer Datei), hier hochladen und dann <strong>„Alles übernehmen“</strong>.
-        </p>
-      </div>
-      <label class="button-link upload-btn" [class.disabled]="busy()">
-        {{ uploading() ? 'Lädt hoch … ' + uploadPct() + ' %' : 'Umzugspaket hochladen' }}
-        <input type="file" accept=".tar" hidden (change)="upload($event)" [disabled]="busy()" />
-      </label>
-      @if (uploading()) {
-        <div class="bar"><div [style.width.%]="uploadPct()"></div></div>
-      }
-    </section>
-
     <div class="toolbar">
       <span class="hint">📌 Angepinnte Backups werden nie automatisch gelöscht – z. B. vor großen Umbauten.</span>
       <button (click)="create()" [disabled]="busy() || status()?.running">{{ creating() ? 'Sichere …' : 'Jetzt sichern' }}</button>
@@ -165,9 +133,7 @@ const POLL_MS = 15_000;
             <td class="num hint">{{ b.durationMs / 1000 | number: '1.1-1' }} s</td>
             <td class="num">
               <div class="row-actions">
-                <a class="button-link" [href]="'/api/backups/' + b.id + '/package'" download title="Alles in einer Datei – für den Umzug auf einen anderen Server">Umzugspaket</a>
-                <a class="button-link" [href]="'/api/backups/' + b.id + '/download'" download title="Nur die Welt">Welt</a>
-                <button class="danger compact" (click)="restoreAll(b)" [disabled]="busy()" title="Welt und Website-Daten komplett durch diesen Stand ersetzen">Alles übernehmen</button>
+                <a class="button-link" [href]="'/api/backups/' + b.id + '/download'" download>Download</a>
                 <button class="secondary compact" (click)="restore(b)" [disabled]="busy()" title="Welt auf diesen Stand zurücksetzen">Zurückspielen</button>
                 <button class="secondary compact" (click)="togglePin(b)" [disabled]="busy()">{{ b.pinned ? 'Lösen' : 'Anpinnen' }}</button>
                 <button class="danger compact" (click)="remove(b)" [disabled]="busy()">Löschen</button>
@@ -198,8 +164,6 @@ export class AdminBackups {
   protected creating = signal(false);
   protected error = signal('');
   protected notice = signal('');
-  protected uploading = signal(false);
-  protected uploadPct = signal(0);
   private timer = setInterval(() => !this.busy() && this.load(), POLL_MS);
 
   constructor() {
@@ -242,40 +206,6 @@ Vorher wird automatisch ein Sicherheits-Backup erstellt.`)) return;
     await this.run(async () => {
       const { safetyBackup } = await this.api.restore(b.id);
       this.notice.set(`Welt auf ${when} zurückgesetzt. Der Server startet gerade neu. Sicherheits-Backup: ${safetyBackup} (angepinnt).`);
-    });
-  }
-
-  async upload(event: Event) {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = '';
-    if (!file) return;
-    this.uploading.set(true);
-    this.uploadPct.set(0);
-    this.notice.set('');
-    await this.run(async () => {
-      await this.api.upload(file, (share) => this.uploadPct.set(Math.round(share * 100)));
-      this.notice.set(`Umzugspaket „${file.name}“ hochgeladen – es steht jetzt in der Liste. Mit „Alles übernehmen“ einspielen.`);
-    });
-    this.uploading.set(false);
-  }
-
-  async restoreAll(b: Backup) {
-    const when = this.date(b.createdAt);
-    if (!confirm(`ALLES durch den Stand vom ${when} ersetzen?
-
-• Welt, OPs, Whitelist, Bans und Mod-Einstellungen
-• Website: Konten, Projekte, Lager, Mods, Modpack, Blaupausen, Bilder
-• Item-Bibliothek
-
-Der aktuelle Stand geht dabei verloren (vorher wird automatisch ein Sicherheits-Backup erstellt).
-Server und Website starten neu, danach musst du dich neu anmelden.`)) return;
-    if (prompt('Zur Bestätigung bitte UMZUG eingeben:') !== 'UMZUG') return;
-    this.notice.set('');
-    await this.run(async () => {
-      const { safetyBackup } = await this.api.restoreAll(b.id);
-      this.notice.set(`Übernahme läuft: Server und Website starten neu. In etwa einer halben Minute geht es zur Anmeldung. Sicherheits-Backup: ${safetyBackup}.`);
-      setTimeout(() => location.assign('/login'), 30_000);
     });
   }
 
