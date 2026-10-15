@@ -33,7 +33,7 @@ export const BACKUP_ID = /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/;
 
 export interface BackupMeta {
   createdAt: string;
-  kind: 'auto' | 'manual';
+  kind: 'auto' | 'manual' | 'import';
   by: string | null;
   durationMs: number;
   pinned: boolean;

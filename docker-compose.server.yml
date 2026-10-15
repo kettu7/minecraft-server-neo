@@ -59,10 +59,12 @@ services:
       DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:?DISCORD_CLIENT_SECRET fehlt}
       DISCORD_GUILD_ID: ${DISCORD_GUILD_ID:-}
       MODS_FILE: /server/modrinth-projects.txt
+      ITEMS_DIR: /items
     volumes:
       - neo-data:/app/data            # Website-Datenbank, Schematics, Projektbilder
       - neo-backups:/backups
       - neo-modlist:/server
+      - neo-items:/items              # Item-Bibliothek (wird beim Umzug befüllt)
       - mc-data:/mc:ro
     depends_on:
       mc:

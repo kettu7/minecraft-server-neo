@@ -111,10 +111,18 @@ function logs(): Promise<{ logs: string }> {
 
 /* ───────────────────────── Zurückspielen ───────────────────────── */
 
-function untar(archive: string, target: string): Promise<void> {
+/** Zusätzlich zur Welt beim vollständigen Übernehmen (Umzug): alles außer server.properties (kommt aus der Konfiguration) */
+const FULL_EXTRAS = ['whitelist.json', 'ops.json', 'banned-players.json', 'banned-ips.json', 'usercache.json', 'config'];
+
+function untar(archive: string, target: string, full = false): Promise<void> {
   return new Promise((resolve, reject) => {
-    // Nur den Weltordner – Whitelist, OPs und Bans bleiben auf dem aktuellen Stand
-    const tar = spawn('tar', ['xzf', archive, '-C', target, 'world']);
+    // Normal nur den Weltordner – Whitelist, OPs und Bans bleiben auf dem aktuellen Stand.
+    // Beim Umzug (full) das ganze Archiv (Welt, OPs, Whitelist, Bans, Mod-Configs) – nur server.properties nicht,
+    // die kommt aus der Konfiguration des Servers.
+    const args = full
+      ? ['xzf', archive, '-C', target, '--exclude=server.properties']
+      : ['xzf', archive, '-C', target, 'world'];
+    const tar = spawn('tar', args);
     let err = '';
     tar.stderr.on('data', (d) => (err += d));
     tar.on('error', reject);
@@ -131,7 +139,7 @@ async function chownRecursive(path: string) {
 
 let busy = false;
 
-async function restore(id: string) {
+async function restore(id: string, full = false) {
   if (!BACKUP_ID.test(id)) throw new Error('Ungültige Backup-ID');
   const archive = join(BACKUP_DIR, id, 'world.tar.gz');
   if (!existsSync(archive)) throw new Error('Backup nicht gefunden');
@@ -143,8 +151,9 @@ async function restore(id: string) {
     await rm(previous, { recursive: true, force: true });
     if (existsSync(world)) await rename(world, previous);
     try {
-      await untar(archive, MC_DIR);
+      await untar(archive, MC_DIR, full);
       await chownRecursive(world);
+      if (full) for (const p of FULL_EXTRAS) if (existsSync(join(MC_DIR, p))) await chownRecursive(join(MC_DIR, p));
     } catch (err) {
       // Fehlgeschlagen: alte Welt zurücklegen
       await rm(world, { recursive: true, force: true });
@@ -170,13 +179,13 @@ function send(res: ServerResponse, code: number, body: unknown) {
   res.writeHead(code, { 'Content-Type': 'application/json' }).end(JSON.stringify(body));
 }
 
-const ACTIONS: Record<string, (arg?: string) => Promise<unknown>> = {
+const ACTIONS: Record<string, (arg?: string, full?: boolean) => Promise<unknown>> = {
   'GET /status': status,
   'GET /logs': logs,
   'POST /stop': stopServer,
   'POST /start': startServer,
   'POST /restart': async () => { await stopServer(); await startServer(); },
-  'POST /restore': (id) => restore(id ?? ''),
+  'POST /restore': (id, full) => restore(id ?? '', full),
 };
 
 createServer(async (req, res) => {
@@ -189,7 +198,7 @@ createServer(async (req, res) => {
   if (mutating && busy) return send(res, 409, { error: 'Es läuft bereits eine Server-Aktion.' });
   if (mutating) busy = true;
   try {
-    const result = await action(url.searchParams.get('id') ?? undefined);
+    const result = await action(url.searchParams.get('id') ?? undefined, url.searchParams.get('full') === '1');
     console.log(new Date().toISOString(), req.method, url.pathname, url.searchParams.get('id') ?? '', 'ok');
     send(res, 200, result ?? { ok: true });
   } catch (err) {
