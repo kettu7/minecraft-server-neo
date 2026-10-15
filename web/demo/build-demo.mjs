@@ -134,7 +134,7 @@ styles = styles.replaceAll('url("./data:', 'url("data:').replaceAll('url(./data:
 const script = (await readFile(join(DIST, js), 'utf8')).replaceAll('</script', '<\\/script');
 const snapshot = { createdAt: new Date().toISOString(), responses, assets, downloads };
 const data = JSON.stringify(snapshot).replaceAll('</', '<\\/');
-const favicon = existsSync(join(DIST, 'favicon.ico')) ? dataUri('image/x-icon', await readFile(join(DIST, 'favicon.ico'))) : '';
+const favicon = existsSync(join(DIST, 'favicon.svg')) ? dataUri('image/svg+xml', await readFile(join(DIST, 'favicon.svg'))) : '';
 
 html = html
   .replace('<base href="/">', '')

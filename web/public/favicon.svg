@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Neo-Logo: isometrischer grüner Block -->
+  <path d="M16 2 29 9.5 16 17 3 9.5Z" fill="#7cf279"/>
+  <path d="M3 9.5 16 17v13L3 22.5Z" fill="#2fb836"/>
+  <path d="M29 9.5 16 17v13l13-7.5Z" fill="#1c7a22"/>
+  <path d="M16 17v13M3 9.5 16 17l13-7.5" stroke="#08210a" stroke-opacity=".35" fill="none"/>
+</svg>
