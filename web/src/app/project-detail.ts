@@ -20,16 +20,77 @@ const POLL_MS = 30_000;
     <a routerLink="/" class="back-button"><app-icon name="arrow-left" [size]="16" />Alle Projekte</a>
 
     @if (project(); as p) {
-      <header class="detail-title">
-        <span class="eyebrow">Bauprojekt</span>
-        <h1>{{ p.name }}</h1>
-        <div class="tile-chips">
-          <span class="chip-gray" title="Schematic-Datei"><app-icon name="file" [size]="13" />{{ p.schematicName }}</span>
-          <span class="chip-gray" title="Maße (Breite × Höhe × Tiefe)"><app-icon name="box" [size]="13" />{{ p.sizeX }}×{{ p.sizeY }}×{{ p.sizeZ }}</span>
-          <span class="chip-gray" title="Blöcke insgesamt"><app-icon name="stack-2" [size]="13" />{{ p.totalBlocks | number }} Blöcke</span>
+      <div class="detail-top">
+      <header class="detail-head">
+        <div class="detail-title">
+          <span class="eyebrow">Bauprojekt</span>
+          <h1>{{ p.name }}</h1>
+          <div class="tile-chips">
+            <span class="chip-gray" title="Schematic-Datei"><app-icon name="file" [size]="13" />{{ p.schematicName }}</span>
+            <span class="chip-gray" title="Maße (Breite × Höhe × Tiefe)"><app-icon name="box" [size]="13" />{{ p.sizeX }}×{{ p.sizeY }}×{{ p.sizeZ }}</span>
+            <span class="chip-gray" title="Blöcke insgesamt"><app-icon name="stack-2" [size]="13" />{{ p.totalBlocks | number }} Blöcke</span>
+          </div>
+          @if (p.description) { <p class="hint">{{ p.description }}</p> }
         </div>
-        @if (p.description) { <p class="hint">{{ p.description }}</p> }
+        <div class="head-actions">
+          <button type="button" class="secondary with-icon" (click)="editOpen.set(!editOpen())" [attr.aria-expanded]="editOpen()">
+            <app-icon name="pencil" [size]="15" />Standort bearbeiten
+          </button>
+          <button type="button" class="with-icon" (click)="refresh(p)" [disabled]="busy()">
+            <app-icon name="refresh" [size]="15" [class.spin]="refreshing()" />{{ refreshing() ? 'Aktualisiere …' : 'Aktualisieren' }}
+          </button>
+        </div>
       </header>
+
+      <!-- Standort bearbeiten: klappt unter dem Kopf auf -->
+      <div class="create-reveal" [class.open]="editOpen()" [attr.inert]="editOpen() ? null : ''">
+        <div class="create-inner">
+          <section class="card create-card">
+            <header class="create-head">
+              <h2>Standort bearbeiten</h2>
+              <button type="button" class="icon-btn" (click)="editOpen.set(false)" title="Schließen" aria-label="Schließen">
+                <app-icon name="x" [size]="18" />
+              </button>
+            </header>
+            <p class="hint">Werte aus Litematica: <kbd>M</kbd> → Schematic Placements → Configure.</p>
+            <form class="placement" (submit)="savePlacement($event, form)" #form>
+              <label>X <input name="x" type="number" step="1" required [value]="p.placement?.x ?? ''" /></label>
+              <label>Y <input name="y" type="number" step="1" required [value]="p.placement?.y ?? ''" /></label>
+              <label>Z <input name="z" type="number" step="1" required [value]="p.placement?.z ?? ''" /></label>
+              <label>Drehung
+                <select name="rotation">
+                  @for (o of rotations | keyvalue: keep; track o.key) {
+                    <option [value]="o.key" [selected]="(p.placement?.rotation ?? 'NONE') === o.key">{{ o.value }}</option>
+                  }
+                </select>
+              </label>
+              <label>Spiegelung
+                <select name="mirror">
+                  @for (o of mirrors | keyvalue: keep; track o.key) {
+                    <option [value]="o.key" [selected]="(p.placement?.mirror ?? 'NONE') === o.key">{{ o.value }}</option>
+                  }
+                </select>
+              </label>
+              <label>Dimension
+                <select name="dimension">
+                  @for (o of dimensions | keyvalue: keep; track o.key) {
+                    <option [value]="o.key" [selected]="(p.placement?.dimension ?? 'minecraft:overworld') === o.key">{{ o.value }}</option>
+                  }
+                </select>
+              </label>
+              <div class="form-footer">
+                @if (auth.isAdmin()) {
+                  <button formExtra type="button" class="text-button danger-text with-icon" (click)="remove(p)">
+                    <app-icon name="trash" [size]="15" />Projekt löschen
+                  </button>
+                }
+                <button type="submit" [disabled]="busy()">Speichern & prüfen</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      </div>
+      </div>
 
       @if (error()) {
         <p class="error">{{ error() }}</p>
@@ -63,11 +124,27 @@ const POLL_MS = 30_000;
             </span>
           </div>
 
+          <div class="progress-block location-block">
+            <div class="progress-label"><strong>Standort in der Welt</strong></div>
+            @if (p.placement; as pl) {
+              <div class="tile-chips">
+                <span class="coord"><b>X</b>{{ pl.x }}</span>
+                <span class="coord"><b>Y</b>{{ pl.y }}</span>
+                <span class="coord"><b>Z</b>{{ pl.z }}</span>
+                <span class="chip-gray"><app-icon name="world" [size]="13" />{{ dimensions[pl.dimension] }}</span>
+                @if (pl.rotation !== 'NONE') { <span class="chip-gray"><app-icon name="rotate" [size]="13" />{{ rotationShort[pl.rotation] }}</span> }
+                @if (pl.mirror !== 'NONE') { <span class="chip-gray"><app-icon name="flip-vertical" [size]="13" />gespiegelt</span> }
+              </div>
+            } @else {
+              <span class="hint">Noch kein Standort – <button type="button" class="link" (click)="editOpen.set(true)">jetzt angeben</button></span>
+            }
+            @if (p.unloadedBlocks) {
+              <span class="warn small-text with-icon"><app-icon name="alert-triangle" [size]="14" />{{ p.unloadedBlocks | number }} Blöcke lagen in nicht geladenen Bereichen.</span>
+            }
+          </div>
+
           <div class="progress-actions">
             <div class="action-row">
-              <button type="button" class="with-icon" (click)="refresh(p)" [disabled]="busy()">
-                <app-icon name="refresh" [size]="15" [class.spin]="refreshing()" />{{ refreshing() ? 'Aktualisiere …' : 'Aktualisieren' }}
-              </button>
               <a class="button-link with-icon" [href]="'/api/projects/' + p.id + '/schematic'" download>
                 <app-icon name="file-download" [size]="15" />Blaupause
               </a>
@@ -82,11 +159,6 @@ const POLL_MS = 30_000;
               <button type="button" class="text-button with-icon" popovertarget="schematic-help">
                 <app-icon name="info-circle" [size]="15" />Blaupause im Spiel verwenden
               </button>
-              @if (auth.isAdmin()) {
-                <button type="button" class="text-button danger-text with-icon" (click)="remove(p)">
-                  <app-icon name="trash" [size]="15" />Löschen
-                </button>
-              }
             </div>
             <p class="hint progress-meta">Aktualisiert sich automatisch alle {{ interval() }} Min.</p>
           </div>
@@ -128,55 +200,6 @@ const POLL_MS = 30_000;
           </div>
         }
       </section>
-
-      <details class="card" [open]="!p.placement">
-        <summary>
-          Standort in der Welt
-          @if (p.placement; as pl) {
-            <span class="summary-meta">
-              <span class="coord"><b>X</b>{{ pl.x }}</span>
-              <span class="coord"><b>Y</b>{{ pl.y }}</span>
-              <span class="coord"><b>Z</b>{{ pl.z }}</span>
-              <span class="chip-gray"><app-icon name="world" [size]="13" />{{ dimensions[pl.dimension] }}</span>
-              @if (pl.rotation !== 'NONE') { <span class="chip-gray"><app-icon name="rotate" [size]="13" />{{ rotationShort[pl.rotation] }}</span> }
-              @if (pl.mirror !== 'NONE') { <span class="chip-gray"><app-icon name="flip-vertical" [size]="13" />gespiegelt</span> }
-            </span>
-          }
-        </summary>
-        <p class="hint">Werte aus Litematica: <kbd>M</kbd> → Schematic Placements → Configure.</p>
-        <form class="placement" (submit)="savePlacement($event, form)" #form>
-          <label>X <input name="x" type="number" step="1" required [value]="p.placement?.x ?? ''" /></label>
-          <label>Y <input name="y" type="number" step="1" required [value]="p.placement?.y ?? ''" /></label>
-          <label>Z <input name="z" type="number" step="1" required [value]="p.placement?.z ?? ''" /></label>
-          <label>Drehung
-            <select name="rotation">
-              @for (o of rotations | keyvalue: keep; track o.key) {
-                <option [value]="o.key" [selected]="(p.placement?.rotation ?? 'NONE') === o.key">{{ o.value }}</option>
-              }
-            </select>
-          </label>
-          <label>Spiegelung
-            <select name="mirror">
-              @for (o of mirrors | keyvalue: keep; track o.key) {
-                <option [value]="o.key" [selected]="(p.placement?.mirror ?? 'NONE') === o.key">{{ o.value }}</option>
-              }
-            </select>
-          </label>
-          <label>Dimension
-            <select name="dimension">
-              @for (o of dimensions | keyvalue: keep; track o.key) {
-                <option [value]="o.key" [selected]="(p.placement?.dimension ?? 'minecraft:overworld') === o.key">{{ o.value }}</option>
-              }
-            </select>
-          </label>
-          <div class="actions">
-            <button type="submit" class="secondary" [disabled]="busy()">Standort speichern</button>
-          </div>
-        </form>
-        @if (p.unloadedBlocks) {
-          <p class="warn">{{ p.unloadedBlocks | number }} Blöcke konnten nicht geprüft werden (Bereich nicht geladen).</p>
-        }
-      </details>
 
       <section class="mat-panel">
         <header class="mat-toolbar">
@@ -257,6 +280,7 @@ const POLL_MS = 30_000;
       <p class="hint">Lade …</p>
     }
   `,
+  host: { '(document:keydown.escape)': 'editOpen.set(false)' },
 })
 export class ProjectDetail {
   private api = inject(ProjectsService);
@@ -275,6 +299,9 @@ export class ProjectDetail {
   protected readonly Math = Math;
   busy = signal(false);
   refreshing = signal(false);
+  /** Standort bearbeiten offen – beim ersten Laden automatisch, wenn noch kein Standort gesetzt ist */
+  editOpen = signal(false);
+  private firstLoad = true;
 
   assigned = computed(() => new Set(this.project()?.storages.map((s) => s.id) ?? []));
   filters = computed(() => {
@@ -325,7 +352,11 @@ export class ProjectDetail {
 
   protected load() {
     this.api.get(Number(this.id()))
-      .then((p) => this.project.set(p))
+      .then((p) => {
+        this.project.set(p);
+        if (this.firstLoad && !p.placement) this.editOpen.set(true);
+        this.firstLoad = false;
+      })
       .catch((err) => this.error.set(errorMessage(err)));
   }
 
@@ -364,7 +395,7 @@ export class ProjectDetail {
       x: Number(data.get('x')), y: Number(data.get('y')), z: Number(data.get('z')),
       rotation: data.get('rotation'), mirror: data.get('mirror'), dimension: data.get('dimension'),
     } as Placement;
-    this.save(() => this.api.setPlacement(this.project()!.id, placement));
+    this.save(() => this.api.setPlacement(this.project()!.id, placement)).then((ok) => ok && this.editOpen.set(false));
   }
 
   async refresh(p: Project) {
@@ -392,13 +423,16 @@ export class ProjectDetail {
     }
   }
 
+  /** true, wenn das Speichern geklappt hat */
   private async save(request: () => Promise<Project>) {
     this.busy.set(true);
     try {
       this.project.set(await request());
       this.error.set('');
+      return true;
     } catch (err) {
       this.error.set(errorMessage(err));
+      return false;
     } finally {
       this.busy.set(false);
     }
