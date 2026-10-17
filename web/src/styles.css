@@ -1263,3 +1263,13 @@ details.card[open] summary::before { transform: rotate(180deg); }
 .tile-foot { display: flex; align-items: center; gap: .4rem; margin: -.25rem 0 0; font-size: .8rem; color: var(--muted); }
 .tile-foot .icon { color: var(--built); }
 .storage-tile .error { margin: 0; }
+
+/* Einstellungs-Zeile mit Schalter: Titel hell, Beschreibung klein und blass, als dezentes Feld */
+.storage-form label.switch-row {
+  padding: .8rem 1rem; gap: 1rem; border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, .2); border: 1px solid var(--line);
+}
+.storage-form label.switch-row:hover { border-color: rgba(255, 255, 255, .12); }
+.switch-text { gap: .25rem; }
+.switch-text strong { font-size: .92rem; color: var(--text); }
+.switch-text .hint { font-size: .78rem; color: var(--faint); line-height: 1.4; }
