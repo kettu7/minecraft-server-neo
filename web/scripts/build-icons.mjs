@@ -8,7 +8,7 @@ const ICONS = [
   'alert-triangle', 'arrow-left', 'arrow-right', 'arrow-up', 'box', 'check', 'chevron-down', 'chevron-up', 'circle-check',
   'circle-dashed', 'circle-half-2', 'clipboard', 'confetti', 'copy', 'download', 'external-link', 'file', 'file-download',
   'hammer', 'info-circle', 'map-2', 'map-pin', 'note', 'pencil', 'photo', 'pin', 'plus', 'refresh', 'rotate', 'flip-vertical', 'selector',
-  'stack-2', 'trash', 'upload', 'world', 'x',
+  'stack-2', 'trash', 'upload', 'world', 'x', 'player-play', 'player-stop', 'settings', 'message-circle', 'database', 'users',
   'filled:circle-check', 'filled:crown', 'filled:pinned',
 ];
 

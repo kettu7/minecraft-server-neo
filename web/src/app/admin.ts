@@ -2,19 +2,13 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { KeyValuePipe } from '@angular/common';
 import { AuditEntry, AuthService, GameBan, Me, ROLE_LABELS, Role, WebsiteBan } from './auth';
 import { errorMessage, formatDate } from './projects.service';
-import { AdminNav } from './admin-backups';
+import { AdminNav } from './admin-nav';
 import { Icon } from './icon';
 
 @Component({
   selector: 'app-admin',
   imports: [KeyValuePipe, AdminNav, Icon],
   template: `
-    <header class="page-head">
-      <span class="eyebrow">Admin</span>
-      <h1>Benutzer & Rollen</h1>
-      <p class="hint">Konten, Rollen und Bans.</p>
-    </header>
-
     <app-admin-nav />
 
     @if (pendingCount()) {

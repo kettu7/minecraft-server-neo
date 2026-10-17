@@ -1,4 +1,4 @@
-// Admin → Server: Status, Whitelist an/aus, Spieler kicken/bannen, Ansagen, Neustart, Backup zurückspielen.
+// Admin → Server: Status, Start/Stopp, Whitelist an/aus, Spieler kicken/bannen, Ansagen, Neustart, Backup zurückspielen.
 // Spielbefehle laufen über RCON, Start/Stopp/Zurückspielen über den Steuerdienst neo-control.
 import { readFile } from 'node:fs/promises';
 import { lookup } from 'node:dns/promises';
@@ -7,6 +7,7 @@ import type { FastifyInstance } from 'fastify';
 import { Rcon } from './rcon.ts';
 import { requireAdmin } from './auth.ts';
 import { audit, MINECRAFT_NAME } from './users.ts';
+import { db } from './db.ts';
 import { banInGame, cleanReason } from './moderation.ts';
 import { BACKUP_ID, createBackup, setPinned } from './backup.ts';
 
@@ -69,6 +70,44 @@ async function whitelistState() {
   return { enabled, names };
 }
 
+/** Minecraft-Name → Anzeigename des Website-Kontos (für die Online-Liste) */
+function accountsFor(names: string[]) {
+  const accounts: Record<string, string> = {};
+  const find = db.prepare('SELECT display_name AS displayName FROM users WHERE minecraft_name = ? COLLATE NOCASE');
+  for (const name of names) {
+    const row = find.get(name) as { displayName: string } | undefined;
+    if (row) accounts[name] = row.displayName;
+  }
+  return accounts;
+}
+
+/** Skins kommen über die API (Mojang), damit der Browser keine Drittanbieter direkt anfragt */
+const SKIN_MS = 6 * 60 * 60 * 1000;
+const skins = new Map<string, { at: number; data: Buffer | null }>();
+async function skin(name: string): Promise<Buffer | null> {
+  const key = name.toLowerCase();
+  const hit = skins.get(key);
+  if (hit && Date.now() - hit.at < SKIN_MS) return hit.data;
+  const get = (url: string) => fetch(url, { signal: AbortSignal.timeout(8000) });
+  let data: Buffer | null = null;
+  const profile = await get(`https://api.mojang.com/users/profiles/minecraft/${encodeURIComponent(name)}`);
+  if (profile.ok) {
+    const { id } = (await profile.json()) as { id: string };
+    const session = await get(`https://sessionserver.mojang.com/session/minecraft/profile/${id}`);
+    if (session.ok) {
+      const { properties } = (await session.json()) as { properties: { name: string; value: string }[] };
+      const textures = properties.find((p) => p.name === 'textures');
+      const url = textures && JSON.parse(Buffer.from(textures.value, 'base64').toString()).textures?.SKIN?.url;
+      if (typeof url === 'string' && url.startsWith('http://textures.minecraft.net/')) {
+        const png = await get(url.replace('http://', 'https://'));
+        if (png.ok) data = Buffer.from(await png.arrayBuffer());
+      }
+    }
+  }
+  skins.set(key, { at: Date.now(), data });
+  return data;
+}
+
 export const wait = (s: number) => new Promise((r) => setTimeout(r, s * 1000));
 
 /* ───────────────────────── Routen ───────────────────────── */
@@ -83,7 +122,8 @@ export async function registerServerAdmin(app: FastifyInstance) {
     ]);
     // IPv4 aus dem DNS – passt sich an, falls der Server einmal umzieht
     const ip = await lookup(MC_ADDRESS, { family: 4 }).then((r) => r.address, () => null);
-    return { container, players, whitelist, controlAvailable: !!CONTROL_URL, address: { host: MC_ADDRESS, ip } };
+    const accounts = accountsFor(players?.names ?? []);
+    return { container, players, accounts, whitelist, controlAvailable: !!CONTROL_URL, address: { host: MC_ADDRESS, ip } };
   });
 
   app.post<{ Body: { enabled?: boolean } }>('/api/server/whitelist', async (req, reply) => {
@@ -147,6 +187,39 @@ export async function registerServerAdmin(app: FastifyInstance) {
       return reply.code(502).send({ error: (err as Error).message });
     }
     return { ok: true };
+  });
+
+  // Server anhalten (bleibt aus, bis jemand „Starten“ drückt) und wieder starten
+  app.post('/api/server/stop', async (req, reply) => {
+    if (!requireAdmin(req, reply)) return;
+    await rcon(tellraw(`Server wird in ${WARNING_SECONDS} Sekunden gestoppt.`), 'save-all flush').catch(() => undefined);
+    audit(req.user!.id, 'server gestoppt');
+    await wait(WARNING_SECONDS);
+    try {
+      await control('POST', '/stop');
+    } catch (err) {
+      return reply.code(502).send({ error: (err as Error).message });
+    }
+    return { ok: true };
+  });
+
+  app.post('/api/server/start', async (req, reply) => {
+    if (!requireAdmin(req, reply)) return;
+    audit(req.user!.id, 'server gestartet');
+    try {
+      await control('POST', '/start');
+    } catch (err) {
+      return reply.code(502).send({ error: (err as Error).message });
+    }
+    return { ok: true };
+  });
+
+  app.get<{ Params: { name: string } }>('/api/server/skins/:name', async (req, reply) => {
+    if (!requireAdmin(req, reply)) return;
+    if (!MINECRAFT_NAME.test(req.params.name)) return reply.code(400).send({ error: 'Ungültiger Spielername.' });
+    const data = await skin(req.params.name).catch(() => null);
+    if (!data) return reply.code(404).send({ error: 'Kein Skin.' });
+    return reply.header('Content-Type', 'image/png').header('Cache-Control', 'private, max-age=21600').send(data);
   });
 
   // Backup zurückspielen: vorher Sicherheits-Backup (angepinnt), dann Server stoppen, Welt ersetzen, starten

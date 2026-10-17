@@ -1,7 +1,7 @@
 import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { AdminNav } from './admin-backups';
+import { AdminNav } from './admin-nav';
 import { errorMessage, formatDate } from './projects.service';
 import { KIND_LABELS, ModpackService, megabytes, type PackHit, type PackKind, type PackManage, type PackMode, type PackRow } from './modpack';
 import { Icon } from './icon';
@@ -23,12 +23,6 @@ const SUGGESTIONS: Record<PackKind, string[]> = {
   selector: 'app-admin-modpack',
   imports: [AdminNav, DecimalPipe, RouterLink, Icon],
   template: `
-    <header class="page-head">
-      <span class="eyebrow">Admin</span>
-      <h1>Modpack</h1>
-      <p class="hint">Was Spieler installieren: nötige Server-Mods und eigene Extras.</p>
-    </header>
-
     <app-admin-nav />
 
     @if (error()) { <p class="error">{{ error() }}</p> }
@@ -62,7 +56,7 @@ const SUGGESTIONS: Record<PackKind, string[]> = {
       }
       @if (d.pendingServerChanges) {
         <p class="hint">
-          Unter <a routerLink="/admin/mods">Mods</a> sind Server-Änderungen geplant. Sie kommen erst nach „Übernehmen“ ins Pack,
+          Unter <a routerLink="/admin/mods">Servermods</a> sind Server-Änderungen geplant. Sie kommen erst nach „Übernehmen“ ins Pack,
           damit es immer zum laufenden Server passt.
         </p>
       }

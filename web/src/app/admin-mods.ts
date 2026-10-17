@@ -2,7 +2,7 @@ import { Component, ElementRef, Injectable, computed, inject, signal, viewChild 
 import { HttpClient } from '@angular/common/http';
 import { DecimalPipe } from '@angular/common';
 import { firstValueFrom } from 'rxjs';
-import { AdminNav } from './admin-backups';
+import { AdminNav } from './admin-nav';
 import { errorMessage, formatDate } from './projects.service';
 import { Icon } from './icon';
 
@@ -147,12 +147,6 @@ const CHANGE_LABELS: Record<ModChange['kind'], string> = {
   selector: 'app-admin-mods',
   imports: [AdminNav, DecimalPipe, Icon],
   template: `
-    <header class="page-head">
-      <span class="eyebrow">Admin</span>
-      <h1>Mods</h1>
-      <p class="hint">Server-Mods von Modrinth. Änderungen werden mit „Übernehmen“ wirksam.</p>
-    </header>
-
     <app-admin-nav />
 
     @if (error()) {

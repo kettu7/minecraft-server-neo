@@ -1,7 +1,8 @@
 import { Component, Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { AdminNav } from './admin-backups';
+import { AdminNav } from './admin-nav';
+import { BackupsPanel } from './admin-backups';
 import { errorMessage } from './projects.service';
 import { Icon } from './icon';
 
@@ -11,6 +12,8 @@ export interface ServerInfo {
     | { running: boolean; status: string; health: string | null; startedAt: string; memory: { usage: number; limit: number } | null }
     | { error: string };
   players: { online: number; max: number; names: string[] } | null;
+  /** Minecraft-Name → Anzeigename des Website-Kontos */
+  accounts: Record<string, string>;
   whitelist: { enabled: boolean | null; names: string[] };
   address: { host: string; ip: string | null };
 }
@@ -24,20 +27,16 @@ export class ServerService {
   ban(name: string, reason: string) { return firstValueFrom(this.http.post('/api/server/ban', { name, reason })); }
   say(message: string) { return firstValueFrom(this.http.post('/api/server/say', { message })); }
   restart() { return firstValueFrom(this.http.post('/api/server/restart', {})); }
+  stop() { return firstValueFrom(this.http.post('/api/server/stop', {})); }
+  start() { return firstValueFrom(this.http.post('/api/server/start', {})); }
 }
 
 const POLL_MS = 5_000;
 
 @Component({
   selector: 'app-admin-server',
-  imports: [AdminNav, Icon],
+  imports: [AdminNav, BackupsPanel, Icon],
   template: `
-    <header class="page-head">
-      <span class="eyebrow">Admin</span>
-      <h1>Server</h1>
-      <p class="hint">Status, Spieler und Whitelist.</p>
-    </header>
-
     <app-admin-nav />
 
     @if (error()) {
@@ -48,59 +47,59 @@ const POLL_MS = 5_000;
     }
 
     @if (info(); as i) {
-      <section class="card stats">
-        <div>
-          <strong [class.ok]="state() === 'online'" [class.error]="state() === 'offline'">
-            <span class="dot-inline" [attr.data-state]="state()"></span>{{ stateLabel() }}
-          </strong>
-          <span class="hint">{{ uptime() }}</span>
-        </div>
-        <div>
-          <strong>{{ i.players ? i.players.online + ' / ' + i.players.max : '–' }}</strong>
-          <span class="hint">Spieler online</span>
-        </div>
-        <div>
-          <strong>{{ memory() }}</strong>
-          <span class="hint">Arbeitsspeicher</span>
-        </div>
-        <div>
-          <strong>{{ i.whitelist.enabled === null ? '–' : i.whitelist.enabled ? 'an' : 'aus' }}</strong>
-          <span class="hint">Whitelist<span class="sep" aria-hidden="true"></span>{{ i.whitelist.names.length }} Namen</span>
-        </div>
-      </section>
-
-      <section class="card connect">
-        <div>
-          <h3>Verbinden</h3>
-          <p class="hint">Im Spiel unter Mehrspieler → Server hinzufügen eintragen. Klappt die Adresse nicht, die IP nehmen.</p>
-        </div>
-        <div class="connect-rows">
-          <div class="connect-row">
-            <span class="hint">Adresse</span>
-            <code class="connect-value">{{ i.address.host }}</code>
-            <button type="button" class="secondary compact with-icon" (click)="copy(i.address.host)"><app-icon [name]="copied() === i.address.host ? 'check' : 'copy'" [size]="14" />{{ copied() === i.address.host ? 'Kopiert' : 'Kopieren' }}</button>
+      <!-- Status, Steuerung und Verbindungsdaten -->
+      <section class="card server-panel">
+        <header class="panel-head">
+          <h3>Status</h3>
+          <div class="head-actions">
+            @if (state() === 'offline') {
+              <button type="button" class="with-icon" (click)="start()" [disabled]="busy() || !i.controlAvailable">
+                <app-icon name="player-play" [size]="15" />{{ action() === 'start' ? 'Startet …' : 'Server starten' }}
+              </button>
+            } @else {
+              <button type="button" class="warning with-icon" (click)="restart()" [disabled]="busy() || !i.controlAvailable">
+                <app-icon name="rotate" [size]="15" />{{ action() === 'restart' ? 'Startet neu …' : 'Neu starten' }}
+              </button>
+              <button type="button" class="danger with-icon" (click)="stop()" [disabled]="busy() || !i.controlAvailable">
+                <app-icon name="player-stop" [size]="15" />{{ action() === 'stop' ? 'Stoppt …' : 'Server stoppen' }}
+              </button>
+            }
           </div>
-          @if (i.address.ip && i.address.ip !== i.address.host) {
-            <div class="connect-row">
-              <span class="hint">IP</span>
-              <code class="connect-value">{{ i.address.ip }}</code>
-              <button type="button" class="secondary compact with-icon" (click)="copy(i.address.ip)"><app-icon [name]="copied() === i.address.ip ? 'check' : 'copy'" [size]="14" />{{ copied() === i.address.ip ? 'Kopiert' : 'Kopieren' }}</button>
+        </header>
+
+        <div class="stats inset">
+          <div>
+            <strong [class.ok]="state() === 'online'" [class.error]="state() === 'offline'">
+              <span class="dot-inline" [attr.data-state]="state()"></span>{{ stateLabel() }}
+            </strong>
+            <span class="hint">{{ uptime() }}</span>
+          </div>
+          <div>
+            <strong>{{ i.players ? i.players.online + ' / ' + i.players.max : '–' }}</strong>
+            <span class="hint">Spieler online</span>
+          </div>
+          <div>
+            <strong>{{ memory() }}</strong>
+            <span class="hint">Arbeitsspeicher</span>
+          </div>
+        </div>
+
+        <div class="connect-fields">
+          @for (f of connectFields(i); track f.label) {
+            <div class="copy-field">
+              <span class="copy-label">{{ f.label }}</span>
+              <div class="copy-input">
+                <code>{{ f.value }}</code>
+                <button type="button" class="icon-btn framed" (click)="copy(f.value)"
+                        [title]="copied() === f.value ? 'Kopiert' : f.label + ' kopieren'" [attr.aria-label]="f.label + ' kopieren'">
+                  <app-icon [name]="copied() === f.value ? 'check' : 'copy'" [size]="16" />
+                </button>
+              </div>
             </div>
           }
         </div>
+        <p class="hint small-text">Im Spiel unter Mehrspieler → Server hinzufügen eintragen.</p>
       </section>
-
-      <label class="card toggle">
-        <input type="checkbox" [checked]="i.whitelist.enabled" (change)="toggleWhitelist(!i.whitelist.enabled)" [disabled]="busy() || i.whitelist.enabled === null" />
-        <span>
-          <strong>Whitelist aktiv</strong>
-          <span class="hint">
-            Nur freigeschaltete Spieler (mit Minecraft-Namen im Profil) dürfen rein. Wer nicht auf der Liste steht,
-            wird beim Einschalten sofort gekickt.
-            @if (i.whitelist.names.length) { Auf der Liste: {{ i.whitelist.names.join(', ') }}. }
-          </span>
-        </span>
-      </label>
 
       <section class="card">
         <div class="project-head">
@@ -110,12 +109,18 @@ const POLL_MS = 5_000;
         @if (!i.players?.names?.length) {
           <p class="hint">Gerade ist niemand online.</p>
         } @else {
-          <ul class="ban-list">
+          <ul class="ban-list player-list">
             @for (name of i.players!.names; track name) {
               <li>
                 <div class="item-cell">
-                  <span class="avatar">{{ name[0] }}</span>
-                  <strong class="mono">{{ name }}</strong>
+                  <span class="mc-head" aria-hidden="true">
+                    <span class="mc-head-letter">{{ name[0] }}</span>
+                    <span class="mc-head-skin" [style.background-image]="'url(/api/server/skins/' + name + ')'"></span>
+                  </span>
+                  <span class="player-name">
+                    <strong class="mono">{{ name }}</strong>
+                    @if (i.accounts[name]) { <span class="player-account">{{ i.accounts[name] }}</span> }
+                  </span>
                 </div>
                 <div class="row-actions">
                   <button class="secondary compact" (click)="kick(name)" [disabled]="busy()">Kicken</button>
@@ -128,25 +133,33 @@ const POLL_MS = 5_000;
       </section>
 
       <section class="card">
-        <h3>Ansage an alle</h3>
-        <form class="mc-form" (submit)="say($event, msg)">
-          <label>
-            Nachricht (erscheint im Chat als <span class="ok">[Neo]</span> …)
-            <input #msg type="text" maxlength="200" placeholder="z. B. Heute Abend um 20 Uhr Bauabend am Starterhaus!" />
-          </label>
+        <h3>Admin-Chat</h3>
+        <p class="hint small-text">Erscheint im Spiel-Chat als <span class="ok">[Neo]</span>.</p>
+        <form class="chat-form" (submit)="say($event, msg)">
+          <input #msg type="text" maxlength="200" placeholder="Text eingeben …" aria-label="Nachricht" />
           <button type="submit" [disabled]="busy()">Senden</button>
         </form>
       </section>
 
-      <section class="card danger-zone">
-        <div>
-          <h3>Server neu starten</h3>
-          <p class="hint">Spieler werden {{ 10 }} Sekunden vorher im Chat gewarnt. Dauert etwa eine Minute.</p>
-        </div>
-        <button class="danger" (click)="restart()" [disabled]="busy() || !i.controlAvailable">
-          {{ restarting() ? 'Startet neu …' : 'Neu starten' }}
-        </button>
+      <section class="card settings">
+        <h3>Einstellungen</h3>
+        <label class="switch-row setting">
+          <span class="switch">
+            <input type="checkbox" [checked]="i.whitelist.enabled" (change)="toggleWhitelist(!i.whitelist.enabled)"
+                   [disabled]="busy() || i.whitelist.enabled === null" />
+            <span></span>
+          </span>
+          <span class="switch-text">
+            <strong>Whitelist</strong>
+            <span class="hint">Nur freigeschaltete Spieler dürfen rein<span class="sep" aria-hidden="true"></span>{{ i.whitelist.names.length }} auf der Liste</span>
+          </span>
+        </label>
       </section>
+
+      <details class="card" (toggle)="backupsOpen.set($any($event.target).open)">
+        <summary>Backups</summary>
+        @if (backupsOpen()) { <app-backups-panel /> }
+      </details>
     } @else if (!error()) {
       <p class="hint">Lade …</p>
     }
@@ -156,7 +169,9 @@ export class AdminServer {
   private api = inject(ServerService);
   protected info = signal<ServerInfo | undefined>(undefined);
   protected busy = signal(false);
-  protected restarting = signal(false);
+  /** laufende Server-Aktion für die Button-Beschriftung */
+  protected action = signal<'' | 'restart' | 'stop' | 'start'>('');
+  protected backupsOpen = signal(false);
   protected error = signal('');
   protected notice = signal('');
   protected copied = signal('');
@@ -200,6 +215,12 @@ export class AdminServer {
     }
   }
 
+  protected connectFields(i: ServerInfo) {
+    const fields = [{ label: 'Adresse', value: i.address.host }];
+    if (i.address.ip && i.address.ip !== i.address.host) fields.push({ label: 'IP', value: i.address.ip });
+    return fields;
+  }
+
   async copy(text: string) {
     const done = () => {
       this.copied.set(text);
@@ -236,7 +257,7 @@ export class AdminServer {
   }
 
   ban(name: string) {
-    const reason = prompt(`${name} im Spiel bannen?\n\nHat die Person ein Website-Konto, besser unter „Benutzer & Bans“ bannen – dann ist auch die Anmeldung gesperrt.\n\nGrund (optional):`, '');
+    const reason = prompt(`${name} im Spiel bannen?\n\nHat die Person ein Website-Konto, besser unter „Benutzer“ bannen – dann ist auch die Anmeldung gesperrt.\n\nGrund (optional):`, '');
     if (reason === null) return;
     this.run(() => this.api.ban(name, reason), `${name} wurde im Spiel gebannt.`);
   }
@@ -248,14 +269,27 @@ export class AdminServer {
     this.run(async () => {
       await this.api.say(message);
       input.value = '';
-    }, 'Ansage gesendet.');
+    }, 'Nachricht gesendet.');
   }
 
   async restart() {
     if (!confirm('Server jetzt neu starten? Alle Spieler werden getrennt.')) return;
-    this.restarting.set(true);
-    await this.run(() => this.api.restart(), 'Neustart ausgelöst – der Server ist in etwa einer Minute wieder da.');
-    this.restarting.set(false);
+    await this.serverAction('restart', () => this.api.restart(), 'Neustart ausgelöst – der Server ist in etwa einer Minute wieder da.');
+  }
+
+  async stop() {
+    if (!confirm('Server stoppen? Alle Spieler werden getrennt, und er bleibt aus, bis du ihn wieder startest.')) return;
+    await this.serverAction('stop', () => this.api.stop(), 'Server gestoppt.');
+  }
+
+  async start() {
+    await this.serverAction('start', () => this.api.start(), 'Server startet – in etwa einer Minute ist er erreichbar.');
+  }
+
+  private async serverAction(kind: 'restart' | 'stop' | 'start', request: () => Promise<unknown>, success: string) {
+    this.action.set(kind);
+    await this.run(request, success);
+    this.action.set('');
   }
 
   private async run(action: () => Promise<unknown>, success: string) {

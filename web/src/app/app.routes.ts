@@ -8,7 +8,6 @@ import { MapPage } from './map';
 import { Login } from './login';
 import { Profile } from './profile';
 import { Admin } from './admin';
-import { AdminBackups } from './admin-backups';
 import { AdminServer } from './admin-server';
 import { AdminMods } from './admin-mods';
 import { AdminModpack } from './admin-modpack';
@@ -19,11 +18,12 @@ export const routes: Routes = [
   { path: 'login', component: Login, canActivate: [guestGuard], title: 'Anmelden · Neo' },
   { path: 'warten', component: Profile, canActivate: [loggedInGuard], title: 'Freischaltung · Neo' },
   { path: 'profil', component: Profile, canActivate: [loggedInGuard], title: 'Profil · Neo' },
-  { path: 'admin', component: Admin, canActivate: [adminGuard], title: 'Admin · Neo' },
-  { path: 'admin/server', component: AdminServer, canActivate: [adminGuard], title: 'Server · Neo' },
-  { path: 'admin/backups', component: AdminBackups, canActivate: [adminGuard], title: 'Backups · Neo' },
-  { path: 'admin/mods', component: AdminMods, canActivate: [adminGuard], title: 'Mods · Neo' },
-  { path: 'admin/modpack', component: AdminModpack, canActivate: [adminGuard], title: 'Modpack · Neo' },
+  { path: 'admin', component: AdminServer, canActivate: [adminGuard], title: 'Admin · Neo' },
+  { path: 'admin/benutzer', component: Admin, canActivate: [adminGuard], title: 'Benutzer · Neo' },
+  { path: 'admin/server', redirectTo: 'admin' },
+  { path: 'admin/backups', redirectTo: 'admin' },
+  { path: 'admin/mods', component: AdminMods, canActivate: [adminGuard], title: 'Servermods · Neo' },
+  { path: 'admin/modpack', component: AdminModpack, canActivate: [adminGuard], title: 'Clientmods · Neo' },
   {
     path: '',
     canActivateChild: [memberGuard],

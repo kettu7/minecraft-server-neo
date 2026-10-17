@@ -261,7 +261,7 @@ button.secondary:hover:not(:disabled) { background: var(--accent-soft); border-c
 main { max-width: 1040px; margin: 0 auto; padding: 2.5rem 1rem 5rem; }
 
 /* Jede Seite (Angular-Element in <main>) stapelt ihre Bereiche mit einheitlichem Abstand */
-main > :not(router-outlet) { display: grid; gap: 1.75rem; align-content: start; }
+main > :not(router-outlet) { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.75rem; align-content: start; }
 main > :not(router-outlet) > .back { justify-self: start; margin-bottom: -.75rem; }
 main > :not(router-outlet) > p { margin: 0; }
 .page-head { margin-bottom: .5rem; }
@@ -944,22 +944,6 @@ main:has(> .map-page) { max-width: none; padding-bottom: 1.5rem; }
 /* Backup-Art "Umzugspaket" (frühere Übernahmen) */
 .status.import { color: var(--built); background: rgba(90, 169, 255, .1); border-color: rgba(90, 169, 255, .28); }
 
-/* Admin → Server: Verbinden */
-.connect { display: grid; grid-template-columns: 1fr auto; gap: .75rem 1.5rem; align-items: center; }
-.connect .hint { margin: .3rem 0 0; }
-.connect-rows { display: grid; gap: .5rem; }
-.connect-row { display: grid; grid-template-columns: 4rem auto auto; gap: .75rem; align-items: center; justify-content: end; }
-.connect-row .hint { margin: 0; text-align: right; }
-.connect-value {
-  font-size: .95rem; padding: .45rem .7rem; border-radius: 8px; color: var(--accent);
-  background: rgba(0, 0, 0, .3); border: 1px solid var(--glass-border); user-select: all;
-}
-@media (max-width: 720px) {
-  .connect { grid-template-columns: 1fr; }
-  .connect-row { justify-content: start; }
-  .connect-row .hint { text-align: left; }
-}
-
 /* ───────────────────────── Icons ───────────────────────── */
 .icon { display: inline-flex; flex-shrink: 0; vertical-align: -.15em; line-height: 0; }
 .icon svg { display: block; }
@@ -1350,3 +1334,77 @@ button.secondary[aria-expanded="true"] { background: var(--accent-soft); border-
 .placement .form-footer { grid-column: 1 / -1; }
 /* Tertiär-Button in Formular-Fußzeilen (z. B. „Lager löschen“): 16 px oben/unten */
 .form-footer .text-button { padding: 1rem .9rem; }
+
+/* ───────────────────────── Admin-Panel ───────────────────────── */
+/* Orange für „Neu starten“ – gleiche Glasoptik wie secondary/danger */
+button.warning {
+  color: var(--warn);
+  background: linear-gradient(180deg, var(--glass-strong), var(--glass));
+  border: 1px solid rgba(246, 195, 91, .3);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 6px 16px -10px rgba(0, 0, 0, 0.8);
+}
+button.warning:hover:not(:disabled) { background: rgba(246, 195, 91, .12); border-color: rgba(246, 195, 91, .5); }
+
+.panel-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.server-panel { display: grid; gap: 1rem; }
+.server-panel .panel-head { margin-bottom: 0; }
+.server-panel > .hint { margin: -.4rem 0 0; color: var(--faint); font-size: .8rem; }
+.stats.inset { padding: 0; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
+
+/* Verbinden: Wert als Feld, Kopieren als Icon-Button im Feld */
+.connect-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: .75rem; }
+.copy-field { display: grid; gap: .35rem; }
+.copy-label { font-size: .82rem; font-weight: 600; color: var(--muted); }
+.copy-input {
+  display: flex; align-items: center; gap: .5rem; height: var(--control-h); padding: 0 .4rem 0 .85rem;
+  background: rgba(0, 0, 0, 0.28); border: 1px solid var(--glass-border); border-radius: var(--radius-sm);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+.copy-input code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: .95rem; color: var(--accent); user-select: all; }
+.icon-btn.framed { width: 2.25rem; height: 2.25rem; padding: 0; border-radius: 9px; flex-shrink: 0; }
+
+/* Spieler online: Minecraft-Kopf aus dem Skin (Gesicht + Hut-Ebene), Kontoname grau dahinter */
+.mc-head {
+  --s: 2rem; position: relative; width: var(--s); height: var(--s); flex-shrink: 0; border-radius: 6px; overflow: hidden;
+  display: inline-grid; place-items: center; background: var(--accent-soft); border: 1px solid rgba(255, 255, 255, .12);
+  box-shadow: 0 4px 10px -4px rgba(0, 0, 0, .7);
+}
+.mc-head-letter { font: 700 .85rem var(--font-display); color: var(--accent); }
+.mc-head-skin {
+  position: absolute; inset: 0; image-rendering: pixelated;
+  background-repeat: no-repeat; background-size: calc(var(--s) * 8) auto;
+  background-position: calc(var(--s) * -1) calc(var(--s) * -1);
+}
+.mc-head-skin::after {
+  content: ""; position: absolute; inset: 0; image-rendering: pixelated;
+  background: inherit; background-position: calc(var(--s) * -5) calc(var(--s) * -1);
+}
+.player-name { display: flex; align-items: baseline; gap: .55rem; flex-wrap: wrap; min-width: 0; }
+.player-account { font-size: .82rem; color: var(--faint); }
+
+/* Admin-Chat: Eingabe und Senden in einer Zeile */
+.chat-form { display: grid; grid-template-columns: 1fr auto; gap: .75rem; margin-top: .9rem; }
+.chat-form button { height: var(--control-h); }
+.card > h3 + .small-text { color: var(--faint); font-size: .8rem; margin-top: .3rem; }
+
+/* Einstellungen: Schalterzeilen als dezente Felder */
+.settings { display: grid; gap: .9rem; }
+label.switch-row.setting {
+  display: flex; align-items: center; gap: 1rem; cursor: pointer; padding: .8rem 1rem; border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, .2); border: 1px solid var(--line);
+}
+label.switch-row.setting:hover { border-color: rgba(255, 255, 255, .12); }
+details.card > app-backups-panel { display: grid; gap: 1rem; }
+@media (max-width: 640px) {
+  .server-panel .head-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
+  .server-panel .head-actions > * { justify-content: center; }
+}
+/* Unternavigation: auf schmalen Bildschirmen seitlich wischen statt Seite verbreitern */
+.subnav { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.subnav::-webkit-scrollbar { display: none; }
+.subnav a { white-space: nowrap; flex-shrink: 0; }
+@media (max-width: 640px) {
+  .subnav a { padding: .45rem .8rem; }
+  .server-panel .head-actions > * { white-space: nowrap; padding-inline: .6rem; }
+}

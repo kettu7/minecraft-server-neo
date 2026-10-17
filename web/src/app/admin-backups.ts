@@ -1,6 +1,5 @@
 import { Component, Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { RouterLink, RouterLinkActive } from '@angular/router';
 import { DecimalPipe } from '@angular/common';
 import { firstValueFrom } from 'rxjs';
 import { errorMessage } from './projects.service';
@@ -46,38 +45,14 @@ export class BackupsService {
   }
 }
 
-/** Unternavigation des Admin-Bereichs */
-@Component({
-  selector: 'app-admin-nav',
-  imports: [RouterLink, RouterLinkActive],
-  template: `
-    <nav class="subnav">
-      <a routerLink="/admin" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Benutzer & Bans</a>
-      <a routerLink="/admin/server" routerLinkActive="active">Server</a>
-      <a routerLink="/admin/mods" routerLinkActive="active">Mods</a>
-      <a routerLink="/admin/modpack" routerLinkActive="active">Modpack</a>
-      <a routerLink="/admin/backups" routerLinkActive="active">Backups</a>
-    </nav>
-  `,
-})
-export class AdminNav {}
-
 const POLL_MS = 15_000;
 
 @Component({
-  selector: 'app-admin-backups',
-  imports: [AdminNav, DecimalPipe, Icon],
+  selector: 'app-backups-panel',
+  imports: [DecimalPipe, Icon],
   template: `
-    <header class="page-head">
-      <span class="eyebrow">Admin</span>
-      <h1>Backups</h1>
-      <p class="hint">Welt, Einstellungen und Website-Daten – automatisch jede Stunde.</p>
-    </header>
-
-    <app-admin-nav />
-
     @if (status(); as s) {
-      <section class="card stats">
+      <section class="stats inset">
         <div>
           <strong>{{ backups().length }}</strong>
           <span class="hint">Backups<span class="sep" aria-hidden="true"></span>{{ size(totalBytes()) }}</span>
@@ -154,7 +129,8 @@ const POLL_MS = 15_000;
     </p>
   `,
 })
-export class AdminBackups {
+/** Backups – eingebettet als Akkordeon im Admin-Panel (Server) */
+export class BackupsPanel {
   private api = inject(BackupsService);
   protected backups = signal<Backup[]>([]);
   protected status = signal<BackupStatus | undefined>(undefined);
