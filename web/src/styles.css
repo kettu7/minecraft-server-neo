@@ -1348,3 +1348,5 @@ button.secondary[aria-expanded="true"] { background: var(--accent-soft); border-
 .location-block .tile-chips { margin-top: .1rem; }
 .location-block .hint .link { margin-left: 0; }
 .placement .form-footer { grid-column: 1 / -1; }
+/* Tertiär-Button in Formular-Fußzeilen (z. B. „Lager löschen“): 16 px oben/unten */
+.form-footer .text-button { padding: 1rem .9rem; }
