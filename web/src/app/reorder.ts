@@ -1,12 +1,12 @@
 import { DestroyRef, Directive, ElementRef, inject, input, output } from '@angular/core';
 
-/** So lange muss man auf eine Kachel drücken, bis sie sich verschieben lässt */
-const HOLD_MS = 1000;
+/** So lange muss man auf eine Kachel drücken, bis sie sich verschieben lässt (0,5 s) */
+const HOLD_MS = 500;
 /** Bewegt sich der Finger/die Maus vorher weiter, ist es Scrollen oder Klicken – kein Verschieben */
 const MOVE_TOLERANCE = 8;
 
 /**
- * Kacheln per langem Drücken (1 s) und Ziehen umsortieren – mit Maus und Touch.
+ * Kacheln per langem Drücken (0,5 s) und Ziehen umsortieren – mit Maus und Touch.
  * Container: [appReorder]="ids" (reorder)="Vorschau" (reorderEnd)="Speichern"; Kacheln: [attr.data-reorder-id]="id".
  * Während des Ziehens sortiert der Container live um; Esc bricht ab und stellt die alte Reihenfolge wieder her.
  */

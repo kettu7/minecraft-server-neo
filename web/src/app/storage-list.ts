@@ -94,7 +94,7 @@ const byIds = <T extends { id: number }>(list: T[], ids: number[]) =>
           }
         </ul>
         @if (storages().length > 1) {
-          <p class="hint reorder-hint with-icon"><app-icon name="selector" [size]="14" />Zum Sortieren eine Kachel 1 Sekunde gedrückt halten und ziehen.</p>
+          <p class="hint reorder-hint">Zum Sortieren Kacheln gedrückt halten und ziehen.</p>
         }
       }
     </section>

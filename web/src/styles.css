@@ -1661,9 +1661,9 @@ body:has(app-dashboard)::before { opacity: .34; }
 
 /* ───────────────────────── Sortieren per langem Drücken ───────────────────────── */
 [data-reorder-id] { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; position: relative; }
-/* Während der 1 s: Kachel „lädt sich auf“ (Rahmen füllt sich), damit klar ist, dass etwas passiert */
+/* Während der 0,5 s: Kachel „lädt sich auf“ (Rahmen füllt sich), damit klar ist, dass etwas passiert */
 [data-reorder-id] > * { transition: transform .2s ease, box-shadow .2s ease, opacity .2s; }
-[data-reorder-id].reorder-arming > * { transform: scale(.98); box-shadow: 0 0 0 2px var(--accent-soft); transition: transform 1s ease, box-shadow 1s ease; }
+[data-reorder-id].reorder-arming > * { transform: scale(.98); box-shadow: 0 0 0 2px var(--accent-soft); transition: transform .5s ease, box-shadow .5s ease; }
 .reorder-active { cursor: grabbing; }
 .reorder-active [data-reorder-id]:not(.reorder-dragging) > * { opacity: .75; }
 [data-reorder-id].reorder-dragging { z-index: 20; pointer-events: none; transition: none; }
@@ -1671,7 +1671,8 @@ body:has(app-dashboard)::before { opacity: .34; }
   box-shadow: 0 0 0 2px var(--accent), 0 30px 60px -18px rgba(0, 0, 0, .95), 0 0 40px -10px var(--accent-glow);
 }
 [data-reorder-id].reorder-dropping { transition: transform .2s cubic-bezier(.2, .8, .2, 1); }
-.reorder-hint { margin: -.75rem 0 0; font-size: .8rem; color: var(--faint); }
+/* Hinweis unter den Kacheln: zentriert, mit Abstand, eine Spur dunkler als --faint */
+.reorder-hint { margin: 1.25rem 0 0; text-align: center; font-size: .8rem; color: color-mix(in srgb, var(--faint) 75%, var(--bg)); }
 @media (prefers-reduced-motion: reduce) {
   [data-reorder-id] > *, [data-reorder-id].reorder-arming > *, [data-reorder-id].reorder-dropping { transition: none; }
 }
