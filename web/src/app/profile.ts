@@ -30,7 +30,7 @@ import { Icon } from './icon';
           }
           <div>
             <strong>{{ me.displayName }}</strong>
-            <span class="hint">&#64;{{ me.username }} · <span class="role with-icon" [attr.data-role]="me.isOwner ? 'owner' : me.role">@if (me.isOwner) { <app-icon name="crown-filled" [size]="14" />Inhaber } @else { {{ roles[me.role] }} }</span></span>
+            <span class="hint">&#64;{{ me.username }}<span class="sep" aria-hidden="true"></span><span class="role with-icon" [attr.data-role]="me.isOwner ? 'owner' : me.role">@if (me.isOwner) { <app-icon name="crown-filled" [size]="14" />Inhaber } @else { {{ roles[me.role] }} }</span></span>
           </div>
         </div>
 

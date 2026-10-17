@@ -49,7 +49,7 @@ const STATUS_POLL_MS = 30_000;
             } @else if (s.lastRun?.error) {
               Server nicht erreichbar
             } @else if (s.lastRun) {
-              Sync {{ time(s.lastRun.startedAt) }} · alle {{ s.intervalMinutes }} Min.
+              Sync {{ time(s.lastRun.startedAt) }}<span class="sep" aria-hidden="true"></span>alle {{ s.intervalMinutes }} Min.
             } @else {
               Sync alle {{ s.intervalMinutes }} Min.
             }

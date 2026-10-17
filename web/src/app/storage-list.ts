@@ -65,7 +65,7 @@ const CONTAINER_GROUPS = [
                     <span class="storage-tile-sub">
                       <app-icon name="map-pin" [size]="13" />
                       <span class="mono">{{ s.x }} / {{ s.y }} / {{ s.z }}</span>
-                      @if (s.dimension !== 'minecraft:overworld') { <span class="sep">·</span>{{ dimensions[s.dimension] }} }
+                      @if (s.dimension !== 'minecraft:overworld') { <span class="sep" aria-hidden="true"></span>{{ dimensions[s.dimension] }} }
                     </span>
                   </div>
                   <app-icon class="tile-arrow" name="arrow-right" [size]="18" />

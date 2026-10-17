@@ -127,7 +127,7 @@ type Filter = 'all' | 'active' | 'disabled' | 'updates' | 'planned';
 
 const STATE_LABELS: Record<ModState, { label: string; pill: string }> = {
   active: { label: 'Aktiv', pill: 'covered' },
-  new: { label: 'Neu · geplant', pill: 'planned' },
+  new: { label: 'Neu (geplant)', pill: 'planned' },
   enabling: { label: 'Wird aktiviert', pill: 'planned' },
   version: { label: 'Update geplant', pill: 'planned' },
   disabling: { label: 'Wird deaktiviert', pill: 'partial' },
@@ -167,7 +167,7 @@ const CHANGE_LABELS: Record<ModChange['kind'], string> = {
         <div>
           <strong>{{ d.minecraft.version ?? '–' }}</strong>
           <span class="hint">
-            Minecraft ·
+            Minecraft<span class="sep" aria-hidden="true"></span>
             @if (d.minecraft.newerReleases.length) {
               <span class="warn-text">{{ d.minecraft.newerReleases[0].version }} verfügbar</span>
             } @else { neueste Version }
@@ -176,7 +176,7 @@ const CHANGE_LABELS: Record<ModChange['kind'], string> = {
         <div>
           <strong>{{ d.loader.version ?? '–' }}</strong>
           <span class="hint">
-            {{ d.loader.name }} Loader ·
+            {{ d.loader.name }} Loader<span class="sep" aria-hidden="true"></span>
             @if (d.loader.latest && d.loader.latest !== d.loader.version) {
               <span class="warn-text">{{ d.loader.latest }} verfügbar</span>
             } @else { aktuell }
@@ -200,7 +200,7 @@ const CHANGE_LABELS: Record<ModChange['kind'], string> = {
           <span class="spinner" aria-hidden="true"></span>
           <div>
             <strong>Änderungen werden übernommen …</strong>
-            <span class="hint">{{ d.apply!.step }} · gestartet von {{ d.apply!.by }} um {{ time(d.apply!.startedAt) }}. Dauert meist 1–2 Minuten.</span>
+            <span class="hint">{{ d.apply!.step }}<span class="sep" aria-hidden="true"></span>gestartet von {{ d.apply!.by }} um {{ time(d.apply!.startedAt) }}. Dauert meist 1–2 Minuten.</span>
           </div>
         </section>
       } @else if (d.pending.length) {
@@ -237,8 +237,8 @@ const CHANGE_LABELS: Record<ModChange['kind'], string> = {
             <button type="button" class="link" (click)="dismissedResult.set(true)">ausblenden</button>
           </div>
           <span class="hint">
-            {{ d.apply!.by }} · {{ date(d.apply!.finishedAt!) }}
-            @if (d.apply!.backupId) { · Backup vorher: {{ d.apply!.backupId }} }
+            {{ d.apply!.by }}<span class="sep" aria-hidden="true"></span>{{ date(d.apply!.finishedAt!) }}
+            @if (d.apply!.backupId) { <span class="sep" aria-hidden="true"></span>Backup vorher: {{ d.apply!.backupId }} }
           </span>
           @if (d.apply!.error) { <p class="error small">{{ d.apply!.error }}</p> }
           @for (p of d.apply!.problems ?? []; track $index) { <p class="warn small-text">{{ p }}</p> }
@@ -414,7 +414,7 @@ const CHANGE_LABELS: Record<ModChange['kind'], string> = {
               <div class="seg-bar"><span class="stock" [style.width.%]="u.total ? (u.ready / u.total) * 100 : 0"></span></div>
               <span class="hint">
                 Fabric Loader {{ u.loaderAvailable ? 'verfügbar' : 'noch nicht verfügbar' }}
-                @if (u.ready === u.total && u.loaderAvailable) { · Umstieg wäre möglich }
+                @if (u.ready === u.total && u.loaderAvailable) { <span class="sep" aria-hidden="true"></span>Umstieg wäre möglich }
               </span>
             </div>
             <ul class="upgrade-list">

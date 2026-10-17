@@ -38,11 +38,11 @@ const SUGGESTIONS: Record<PackKind, string[]> = {
       <section class="card stats">
         <div>
           <strong>{{ d.version }}</strong>
-          <span class="hint">Pack-Version · {{ date(d.updatedAt) }}</span>
+          <span class="hint">Pack-Version<span class="sep" aria-hidden="true"></span>{{ date(d.updatedAt) }}</span>
         </div>
         <div>
           <strong>{{ d.minecraft }}</strong>
-          <span class="hint">Minecraft · Fabric {{ d.loader }}</span>
+          <span class="hint">Minecraft<span class="sep" aria-hidden="true"></span>Fabric {{ d.loader }}</span>
         </div>
         <div>
           <strong>{{ d.counts.required }}<small> + {{ d.counts.optional }}</small></strong>
@@ -135,7 +135,7 @@ const SUGGESTIONS: Record<PackKind, string[]> = {
                     @if (r.locked) {
                       <span class="pill" [attr.data-state]="r.mode === 'required' ? 'covered' : 'off'"
                             [title]="r.mode === 'required' ? 'Spieler brauchen den Mod, um auf den Server zu kommen.' : 'Läuft nur auf dem Server.'">
-                        <i></i>{{ r.mode === 'required' ? 'Pflicht · nötig' : 'Nur Server' }}
+                        <i></i>@if (r.mode === 'required') { Pflicht<span class="sep" aria-hidden="true"></span>nötig } @else { Nur Server }
                       </span>
                     } @else {
                       <div class="segmented small" role="group" [attr.aria-label]="r.title + ' im Pack'">

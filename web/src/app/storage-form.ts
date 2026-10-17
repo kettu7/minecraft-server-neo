@@ -38,7 +38,7 @@ const MAX_POSITIONS = 20_000;
               [title]="(positions() | number) + ' Blöcke werden nach Behältern abgesucht'">
           <app-icon name="box" [size]="15" />
           <span>Bereich <strong>{{ side() }} × {{ side() }} × {{ tall() }}</strong> Blöcke</span>
-          <span class="sep">·</span>
+          <span class="sep" aria-hidden="true"></span>
           @if (positions() > max) {
             <span>zu groß – Radius oder Höhe verkleinern</span>
           } @else {

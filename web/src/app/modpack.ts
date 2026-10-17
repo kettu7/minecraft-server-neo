@@ -125,8 +125,7 @@ const SEEN_KEY = 'neo.modpackVersion';
           </span>
           <h2>{{ p.name }} Modpack</h2>
           <p class="hint">
-            Minecraft {{ p.minecraft }} · Fabric {{ p.loader }} · {{ required().length }} Pflicht, {{ optional().length }} optional
-            · {{ size(p.size) }} MB · aktualisiert {{ date(p.updatedAt) }}
+            Minecraft {{ p.minecraft }}<span class="sep" aria-hidden="true"></span>Fabric {{ p.loader }}<span class="sep" aria-hidden="true"></span>{{ required().length }} Pflicht, {{ optional().length }} optional<span class="sep" aria-hidden="true"></span>{{ size(p.size) }} MB<span class="sep" aria-hidden="true"></span>aktualisiert {{ date(p.updatedAt) }}
           </p>
         </div>
         <a class="button-primary" href="/api/modpack/download" (click)="markSeen(p.version)" download>Herunterladen</a>
@@ -177,7 +176,7 @@ const SEEN_KEY = 'neo.modpackVersion';
                     <span class="mod-deps">
                       <span class="kind-tag" [attr.data-kind]="c.kind">{{ kind(c.kind) }}</span>
                       <span class="mono">{{ c.versionNumber }}</span>
-                      @if (c.fromServer) { <span>· auch auf dem Server</span> }
+                      @if (c.fromServer) { <span class="sep" aria-hidden="true"></span><span>auch auf dem Server</span> }
                     </span>
                   </div>
                 </li>

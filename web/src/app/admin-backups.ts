@@ -80,7 +80,7 @@ const POLL_MS = 15_000;
       <section class="card stats">
         <div>
           <strong>{{ backups().length }}</strong>
-          <span class="hint">Backups · {{ size(totalBytes()) }}</span>
+          <span class="hint">Backups<span class="sep" aria-hidden="true"></span>{{ size(totalBytes()) }}</span>
         </div>
         <div>
           <strong>alle {{ s.intervalMinutes }} Min.</strong>

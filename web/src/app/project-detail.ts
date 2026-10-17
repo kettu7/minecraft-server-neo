@@ -58,7 +58,7 @@ const POLL_MS = 30_000;
             </div>
             <div class="bar big built"><div [style.width.%]="ratioOf(p.placed, p.required) * 100"></div></div>
             <span class="hint">
-              @if (p.checkedAt) { {{ p.placed | number }} von {{ p.required | number }} Items · geprüft {{ date(p.checkedAt) }} }
+              @if (p.checkedAt) { {{ p.placed | number }} von {{ p.required | number }} Items<span class="sep" aria-hidden="true"></span>geprüft {{ date(p.checkedAt) }} }
               @else { Noch nicht geprüft – dafür den Standort angeben }
             </span>
           </div>

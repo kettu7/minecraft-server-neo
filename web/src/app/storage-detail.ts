@@ -24,7 +24,7 @@ const POLL_MS = 30_000;
           <span class="eyebrow">Lager</span>
           <h1>{{ s.name }}</h1>
           <p class="hint">
-            {{ dims[s.dimension] }} · Mitte {{ s.x }} / {{ s.y }} / {{ s.z }} · Radius {{ s.radius }} · Höhe ±{{ s.height }}
+            {{ dims[s.dimension] }}<span class="sep" aria-hidden="true"></span>Mitte {{ s.x }} / {{ s.y }} / {{ s.z }}<span class="sep" aria-hidden="true"></span>Radius {{ s.radius }}<span class="sep" aria-hidden="true"></span>Höhe ±{{ s.height }}
           </p>
         </div>
         <div class="head-actions">
@@ -43,14 +43,14 @@ const POLL_MS = 30_000;
           <strong>{{ s.containerCount }}</strong>
           <span class="hint">
             Behälter
-            @for (c of s.containers; track c.type) { · {{ c.n }}× {{ name(c.type) }} }
+            @for (c of s.containers; track c.type) { <span class="sep" aria-hidden="true"></span>{{ c.n }}× {{ name(c.type) }} }
           </span>
         </div>
         <div>
           <strong>{{ s.scannedAt ? date(s.scannedAt) : '–' }}</strong>
           <span class="hint">
             zuletzt gescannt
-            @if (s.scanMs !== null) { · {{ s.scannedPositions | number }} Positionen in {{ s.scanMs / 1000 | number: '1.1-1' }} s }
+            @if (s.scanMs !== null) { <span class="sep" aria-hidden="true"></span>{{ s.scannedPositions | number }} Positionen in {{ s.scanMs / 1000 | number: '1.1-1' }} s }
           </span>
         </div>
       </section>

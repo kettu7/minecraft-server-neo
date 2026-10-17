@@ -93,10 +93,10 @@ import { Icon } from './icon';
             <li>
               <div>
                 <strong>{{ b.displayName }}</strong>
-                @if (b.minecraftName) { <span class="mono"> · {{ b.minecraftName }}</span> }
+                @if (b.minecraftName) { <span class="sep" aria-hidden="true"></span><span class="mono">{{ b.minecraftName }}</span> }
                 <div class="hint">
-                  Website{{ b.inGame ? ' + Spiel' : '' }} · {{ date(b.createdAt) }}{{ b.bannedBy ? ' · von ' + b.bannedBy : '' }}
-                  @if (b.reason) { · „{{ b.reason }}“ }
+                  Website{{ b.inGame ? ' + Spiel' : '' }}<span class="sep" aria-hidden="true"></span>{{ date(b.createdAt) }}@if (b.bannedBy) { <span class="sep" aria-hidden="true"></span>von {{ b.bannedBy }} }
+                  @if (b.reason) { <span class="sep" aria-hidden="true"></span>„{{ b.reason }}“ }
                 </div>
               </div>
               <button class="secondary compact" (click)="unban(b)" [disabled]="busy()">Aufheben</button>
@@ -106,7 +106,7 @@ import { Icon } from './icon';
             <li>
               <div>
                 <strong class="mono">{{ g.name }}</strong>
-                <div class="hint">nur im Spiel · {{ g.source }}{{ g.reason ? ' · „' + g.reason + '“' : '' }}</div>
+                <div class="hint">nur im Spiel<span class="sep" aria-hidden="true"></span>{{ g.source }}@if (g.reason) { <span class="sep" aria-hidden="true"></span>„{{ g.reason }}“ }</div>
               </div>
               <button class="secondary compact" (click)="pardon(g)" [disabled]="busy()">Aufheben</button>
             </li>

@@ -76,7 +76,7 @@ const PIN_STYLE = `
       @if (demo) {
         <!-- Offline-Demo: Standbild statt Live-Karte -->
         <img class="map-still" [src]="demoMap" alt="Karte der Welt (Standbild)" />
-        <span class="map-still-note">Standbild · die 3D-Karte läuft live auf dem Server</span>
+        <span class="map-still-note">Standbild<span class="sep" aria-hidden="true"></span>die 3D-Karte läuft live auf dem Server</span>
       } @else {
         <iframe #frame [src]="src()" title="Karte der Welt" (load)="onFrameLoad()"></iframe>
       }

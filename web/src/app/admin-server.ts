@@ -65,7 +65,7 @@ const POLL_MS = 5_000;
         </div>
         <div>
           <strong>{{ i.whitelist.enabled === null ? '–' : i.whitelist.enabled ? 'an' : 'aus' }}</strong>
-          <span class="hint">Whitelist · {{ i.whitelist.names.length }} Namen</span>
+          <span class="hint">Whitelist<span class="sep" aria-hidden="true"></span>{{ i.whitelist.names.length }} Namen</span>
         </div>
       </section>
 

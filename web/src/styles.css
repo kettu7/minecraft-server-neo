@@ -1243,7 +1243,7 @@ details.card[open] summary::before { transform: rotate(180deg); }
 .storage-tile-title strong { font: 700 1.1rem/1.2 var(--font-display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .storage-tile-sub { display: flex; align-items: center; gap: .35rem; font-size: .8rem; color: var(--muted); white-space: nowrap; overflow: hidden; }
 .storage-tile-sub .mono { font-size: .78rem; color: var(--text); opacity: .85; }
-.storage-tile-sub .sep { color: var(--faint); }
+
 .tile-arrow { color: var(--faint); transition: transform .18s, color .18s; }
 .storage-tile:hover .tile-arrow { color: var(--accent); transform: translateX(3px); }
 
@@ -1286,8 +1286,15 @@ details.card[open] summary::before { transform: rotate(180deg); }
 }
 .scan-estimate .icon { color: var(--accent); }
 .scan-estimate strong { color: var(--text); font-weight: 700; }
-.scan-estimate .sep { color: var(--faint); }
+
 .scan-estimate.too-big { color: #ffd3d3; background: var(--danger-soft); border-color: rgba(255, 107, 107, .3); }
 .scan-estimate.too-big .icon { color: var(--danger); }
 .form-footer button { min-width: 220px; }
 @media (max-width: 640px) { .form-footer > * { flex: 1 1 100%; justify-content: center; } }
+
+/* Trenner zwischen Informationen: senkrechter Strich 2 × 6 px mit runden Ecken (statt „·“) */
+.sep {
+  display: inline-block; flex-shrink: 0; width: 2px; height: 6px; border-radius: 2px;
+  margin: 0 .55em; vertical-align: middle; background: currentColor; opacity: .4;
+}
+:is(.storage-tile-sub, .scan-estimate, .mod-deps) .sep { margin: 0 .2em; }
