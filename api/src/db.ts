@@ -87,6 +87,9 @@ addColumn('projects', 'checked_at', 'TEXT');
 addColumn('projects', 'image_type', 'TEXT');        // z. B. image/webp; NULL = kein Bild
 addColumn('projects', 'image_updated_at', 'TEXT');  // dient auch als Cache-Version für die Bild-URL
 addColumn('materials', 'placed', 'INTEGER NOT NULL DEFAULT 0');
+// Gemeinsame Reihenfolge der Kacheln (Drag & Drop); NULL = noch nie einsortiert → steht vorn
+addColumn('projects', 'sort_order', 'INTEGER');
+addColumn('storages', 'sort_order', 'INTEGER');
 
 export function transaction<T>(fn: () => T): T {
   db.exec('BEGIN');
@@ -180,7 +183,7 @@ function buildProject(row: ProjectRow) {
 }
 
 export function listProjects() {
-  const rows = db.prepare(`SELECT ${PROJECT_COLUMNS} FROM projects ORDER BY created_at DESC`).all() as unknown as ProjectRow[];
+  const rows = db.prepare(`SELECT ${PROJECT_COLUMNS} FROM projects ORDER BY sort_order IS NOT NULL, sort_order, created_at DESC`).all() as unknown as ProjectRow[];
   return rows.map((r) => {
     const { materials, ...summary } = buildProject(r);
     return summary;
@@ -297,8 +300,14 @@ function storageSummary(row: Record<string, unknown>) {
   };
 }
 
+/** Reihenfolge speichern: Position in der Liste = sort_order; unbekannte IDs werden ignoriert */
+export function setOrder(table: 'projects' | 'storages', ids: number[]) {
+  const update = db.prepare(`UPDATE ${table} SET sort_order = ? WHERE id = ?`);
+  transaction(() => ids.forEach((id, index) => update.run(index, id)));
+}
+
 export function listStorages() {
-  return db.prepare(`SELECT ${STORAGE_COLUMNS} FROM storages s ORDER BY s.name`).all().map(storageSummary);
+  return db.prepare(`SELECT ${STORAGE_COLUMNS} FROM storages s ORDER BY s.sort_order IS NOT NULL, s.sort_order, s.name`).all().map(storageSummary);
 }
 
 export function getStorage(id: number) {

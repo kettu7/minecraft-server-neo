@@ -146,6 +146,11 @@ export class ProjectsService {
     return firstValueFrom(this.http.get<ProjectSummary[]>('/api/projects'));
   }
 
+  /** gemeinsame Reihenfolge der Kacheln speichern */
+  order(ids: number[]) {
+    return firstValueFrom(this.http.put<ProjectSummary[]>('/api/projects/order', { ids }));
+  }
+
   get(id: number) {
     return firstValueFrom(this.http.get<Project>(`/api/projects/${id}`));
   }
@@ -193,6 +198,11 @@ export class StoragesService {
 
   list() {
     return firstValueFrom(this.http.get<StorageSummary[]>('/api/storages'));
+  }
+
+  /** gemeinsame Reihenfolge der Kacheln speichern */
+  order(ids: number[]) {
+    return firstValueFrom(this.http.put<StorageSummary[]>('/api/storages/order', { ids }));
   }
 
   get(id: number) {

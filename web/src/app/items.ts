@@ -1,4 +1,4 @@
-import { Component, Injectable, computed, inject, input, signal } from '@angular/core';
+import { Component, Injectable, computed, inject, input, model, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 
 export interface LibraryItem {
@@ -12,6 +12,21 @@ export interface LibraryItem {
   /** flat = Textur, block = gerendert, special = Kiste/Shulker */
   kind: string;
 }
+
+/** Tabs wie im Creative-Inventar (Zuordnung: /creative-tabs.json, erzeugt mit `npm run items`) */
+export const CREATIVE_TABS = [
+  { key: 'building', label: 'Baublöcke', icon: 'bricks' },
+  { key: 'colored', label: 'Farbige Blöcke', icon: 'cyan_wool' },
+  { key: 'natural', label: 'Natur', icon: 'grass_block' },
+  { key: 'functional', label: 'Funktional', icon: 'crafting_table' },
+  { key: 'redstone', label: 'Redstone', icon: 'redstone' },
+  { key: 'tools', label: 'Werkzeuge', icon: 'diamond_pickaxe' },
+  { key: 'combat', label: 'Kampf', icon: 'golden_sword' },
+  { key: 'food', label: 'Essen & Tränke', icon: 'golden_apple' },
+  { key: 'ingredients', label: 'Zutaten', icon: 'iron_ingot' },
+  { key: 'spawn_eggs', label: 'Spawn-Eier', icon: 'pig_spawn_egg' },
+] as const;
+export type CreativeTab = (typeof CREATIVE_TABS)[number]['key'];
 
 export const ITEM_LANGUAGES = { de: 'DE', en: 'EN' } as const;
 export type ItemLanguage = keyof typeof ITEM_LANGUAGES;
@@ -30,6 +45,9 @@ export class ItemLibrary {
   readonly languages = signal<ItemLanguage[]>(['en']);
   readonly language = signal<ItemLanguage>(readLanguage());
   readonly byId = computed(() => new Map(this.items().map((i) => [i.id, i])));
+  private tabs = signal(new Map<string, CreativeTab>());
+  /** true, sobald die Creative-Zuordnung da ist (sonst werden keine Tabs angezeigt) */
+  readonly hasTabs = computed(() => this.tabs().size > 0);
 
   constructor() {
     this.http.get<{ items: LibraryItem[]; languages?: ItemLanguage[] }>('/items/items.json').subscribe({
@@ -40,6 +58,22 @@ export class ItemLibrary {
       },
       error: () => this.loaded.set(true),
     });
+    this.http.get<Record<CreativeTab, string[]>>('/creative-tabs.json').subscribe({
+      next: (groups) => this.tabs.set(new Map(Object.entries(groups).flatMap(([tab, ids]) => ids.map((id) => [id, tab as CreativeTab])))),
+      error: () => undefined,
+    });
+  }
+
+  /** Creative-Tab eines Items; unbekannte (z. B. Mod-Items) landen bei den Baublöcken */
+  tab(id: string): CreativeTab {
+    return this.tabs().get(id.replace(/^minecraft:/, '')) ?? 'building';
+  }
+
+  /** Anzahl je Tab für eine Liste von Item-IDs */
+  tabCounts(ids: string[]): Record<string, number> {
+    const counts: Record<string, number> = {};
+    for (const id of ids) counts[this.tab(id)] = (counts[this.tab(id)] ?? 0) + 1;
+    return counts;
   }
 
   setLanguage(lang: ItemLanguage) {
@@ -120,4 +154,32 @@ export class ItemIcon {
 
   protected showImage = computed(() => !this.failed() && this.library.hasIcon(this.item()));
   protected initial = computed(() => this.library.name(this.item())[0] ?? '?');
+}
+
+/** Tab-Leiste wie im Creative-Inventar: Item-Bild + Name + Anzahl; Tabs ohne Treffer werden ausgeblendet */
+@Component({
+  selector: 'app-creative-tabs',
+  imports: [ItemIcon],
+  template: `
+    @if (library.hasTabs()) {
+      <div class="creative-tabs" role="tablist" aria-label="Kategorien">
+        <button type="button" role="tab" [class.active]="value() === 'all'" [attr.aria-selected]="value() === 'all'" (click)="value.set('all')">
+          <app-item-icon item="chest" [size]="22" />Alle<span class="seg-count">{{ total() }}</span>
+        </button>
+        @for (t of visibleTabs(); track t.key) {
+          <button type="button" role="tab" [class.active]="value() === t.key" [attr.aria-selected]="value() === t.key" (click)="value.set(t.key)">
+            <app-item-icon [item]="t.icon" [size]="22" />{{ t.label }}<span class="seg-count">{{ counts()[t.key] }}</span>
+          </button>
+        }
+      </div>
+    }
+  `,
+})
+export class CreativeTabs {
+  protected library = inject(ItemLibrary);
+  /** Anzahl je Tab (aus ItemLibrary.tabCounts) */
+  counts = input.required<Record<string, number>>();
+  value = model<CreativeTab | 'all'>('all');
+  protected visibleTabs = computed(() => CREATIVE_TABS.filter((t) => (this.counts()[t.key] ?? 0) > 0));
+  protected total = computed(() => Object.values(this.counts()).reduce((a, n) => a + n, 0));
 }

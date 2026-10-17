@@ -1661,3 +1661,45 @@ body:has(app-dashboard)::before { opacity: .34; }
 .rank-list li + li { border-top: 1px solid rgba(255, 255, 255, .04); }
 .rank-list li.me { background: none; box-shadow: none; }
 .rank-list li.me .rank-name { color: var(--rank); }
+
+/* ───────────────────────── Sortieren per langem Drücken ───────────────────────── */
+[data-reorder-id] { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; position: relative; }
+/* Während der 1 s: Kachel „lädt sich auf“ (Rahmen füllt sich), damit klar ist, dass etwas passiert */
+[data-reorder-id] > * { transition: transform .2s ease, box-shadow .2s ease, opacity .2s; }
+[data-reorder-id].reorder-arming > * { transform: scale(.98); box-shadow: 0 0 0 2px var(--accent-soft); transition: transform 1s ease, box-shadow 1s ease; }
+.reorder-active { cursor: grabbing; }
+.reorder-active [data-reorder-id]:not(.reorder-dragging) > * { opacity: .75; }
+[data-reorder-id].reorder-dragging { z-index: 20; pointer-events: none; transition: none; }
+[data-reorder-id].reorder-dragging > * {
+  box-shadow: 0 0 0 2px var(--accent), 0 30px 60px -18px rgba(0, 0, 0, .95), 0 0 40px -10px var(--accent-glow);
+}
+[data-reorder-id].reorder-dropping { transition: transform .2s cubic-bezier(.2, .8, .2, 1); }
+.reorder-hint { margin: -.75rem 0 0; font-size: .8rem; color: var(--faint); }
+@media (prefers-reduced-motion: reduce) {
+  [data-reorder-id] > *, [data-reorder-id].reorder-arming > *, [data-reorder-id].reorder-dropping { transition: none; }
+}
+
+/* ───────────────────────── Creative-Tabs ───────────────────────── */
+.creative-tabs {
+  display: flex; gap: .4rem; overflow-x: auto; scrollbar-width: none; padding: .2rem .1rem .3rem; margin: -.25rem 0 0;
+  mask-image: linear-gradient(90deg, #000 calc(100% - 2rem), transparent);
+}
+.creative-tabs::-webkit-scrollbar { display: none; }
+.creative-tabs button {
+  display: inline-flex; align-items: center; gap: .5rem; flex-shrink: 0; white-space: nowrap;
+  font: 600 .84rem/1 var(--font-body); letter-spacing: 0; text-transform: none; color: var(--muted);
+  padding: .35rem .7rem .35rem .4rem; border-radius: 10px;
+  background: rgba(0, 0, 0, .25); border: 1px solid var(--glass-border); box-shadow: none;
+}
+.creative-tabs button:hover:not(:disabled) { color: var(--text); background: rgba(255, 255, 255, .06); transform: none; filter: none; }
+.creative-tabs button.active {
+  color: var(--text); background: linear-gradient(180deg, rgba(255, 255, 255, .12), rgba(255, 255, 255, .06));
+  border-color: rgba(95, 227, 92, .45); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 0 18px -8px var(--accent-glow);
+}
+.creative-tabs button.active .seg-count { background: var(--accent-soft); color: var(--accent); }
+.creative-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Tab-Leiste darf die Seite nicht verbreitern – sie scrollt in sich */
+app-creative-tabs { display: block; min-width: 0; }
+.browser { grid-template-columns: minmax(0, 1fr); }
+.item-tile .item-name { overflow-wrap: anywhere; hyphens: auto; }

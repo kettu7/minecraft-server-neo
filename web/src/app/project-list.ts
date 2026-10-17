@@ -1,13 +1,18 @@
-import { Component, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { DecimalPipe, PercentPipe } from '@angular/common';
 import { ItemIcon } from './items';
 import { Icon } from './icon';
 import { ProjectsService, ProjectSummary, errorMessage } from './projects.service';
+import { Reorder } from './reorder';
+
+/** Liste in die Reihenfolge der IDs bringen (Vorschau beim Ziehen) */
+const byIds = <T extends { id: number }>(list: T[], ids: number[]) =>
+  ids.map((id) => list.find((x) => x.id === id)).filter((x): x is T => !!x);
 
 @Component({
   selector: 'app-project-list',
-  imports: [RouterLink, DecimalPipe, PercentPipe, ItemIcon, Icon],
+  imports: [Reorder, RouterLink, DecimalPipe, PercentPipe, ItemIcon, Icon],
   template: `
     <header class="page-head">
       <span class="eyebrow">Gemeinsam bauen</span>
@@ -63,9 +68,9 @@ import { ProjectsService, ProjectSummary, errorMessage } from './projects.servic
       } @else if (!projects().length) {
         <p class="hint">Noch keine Projekte.</p>
       } @else {
-        <ul class="projects">
+        <ul class="projects" [appReorder]="ids()" (reorder)="preview($event)" (reorderEnd)="saveOrder($event)">
           @for (p of projects(); track p.id) {
-            <li>
+            <li [attr.data-reorder-id]="p.id">
               <a class="card project with-thumb" [routerLink]="['/projekte', p.id]">
                 <div class="project-thumb">
                   @if (p.image) {
@@ -97,12 +102,32 @@ import { ProjectsService, ProjectSummary, errorMessage } from './projects.servic
             </li>
           }
         </ul>
+        @if (projects().length > 1) {
+          <p class="hint reorder-hint with-icon"><app-icon name="selector" [size]="14" />Zum Sortieren eine Kachel 1 Sekunde gedrückt halten und ziehen.</p>
+        }
       }
     </section>
   `,
   host: { '(document:keydown.escape)': 'closeCreate()' },
 })
 export class ProjectList {
+  protected ids = computed(() => this.projects().map((x) => x.id));
+
+  /** Vorschau während des Ziehens */
+  protected preview(ids: number[]) {
+    this.projects.set(byIds(this.projects(), ids));
+  }
+
+  /** Reihenfolge für alle speichern; bei Fehler den Serverstand zurückholen */
+  protected async saveOrder(ids: number[]) {
+    try {
+      this.projects.set(await this.api.order(ids));
+    } catch (err) {
+      this.error.set(errorMessage(err));
+      this.projects.set(await this.api.list());
+    }
+  }
+
   private api = inject(ProjectsService);
   private router = inject(Router);
 

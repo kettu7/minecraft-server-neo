@@ -281,9 +281,8 @@ export class Dashboard {
     this.loadInfo();
     Promise.all([this.projectsApi.list(), this.storagesApi.list()])
       .then(([projects, storages]) => {
-        // Offene Projekte zuerst (neueste vorn), fertige ans Ende
-        const sorted = [...projects].sort((a, b) => Number(this.done(a)) - Number(this.done(b)) || b.createdAt.localeCompare(a.createdAt));
-        this.projects.set(sorted);
+        // Gemeinsame Reihenfolge aus der Projekt-Übersicht (Drag & Drop)
+        this.projects.set(projects);
         this.storages.set(storages);
       })
       .catch((err) => this.error.set(errorMessage(err)))

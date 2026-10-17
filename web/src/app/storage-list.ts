@@ -1,14 +1,19 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { DecimalPipe } from '@angular/common';
 import { StorageForm } from './storage-form';
 import { ItemIcon } from './items';
 import { Icon } from './icon';
 import { DIMENSION_LABELS, StorageInput, StorageSummary, StoragesService, containerGroups, errorMessage, reportErrors } from './projects.service';
+import { Reorder } from './reorder';
+
+/** Liste in die Reihenfolge der IDs bringen (Vorschau beim Ziehen) */
+const byIds = <T extends { id: number }>(list: T[], ids: number[]) =>
+  ids.map((id) => list.find((x) => x.id === id)).filter((x): x is T => !!x);
 
 @Component({
   selector: 'app-storage-list',
-  imports: [RouterLink, DecimalPipe, StorageForm, ItemIcon, Icon],
+  imports: [Reorder, RouterLink, DecimalPipe, StorageForm, ItemIcon, Icon],
   template: `
     <header class="page-head">
       <span class="eyebrow">Gespiegelt aus der Welt</span>
@@ -47,9 +52,9 @@ import { DIMENSION_LABELS, StorageInput, StorageSummary, StoragesService, contai
       } @else if (!storages().length) {
         <p class="hint">Noch keine Lager.</p>
       } @else {
-        <ul class="projects storage-tiles">
+        <ul class="projects storage-tiles" [appReorder]="ids()" (reorder)="preview($event)" (reorderEnd)="saveOrder($event)">
           @for (s of storages(); track s.id) {
-            <li>
+            <li [attr.data-reorder-id]="s.id">
               <a class="card storage-tile" [routerLink]="['/lager', s.id]">
                 <div class="storage-tile-head">
                   <span class="storage-tile-icon"><app-item-icon item="chest" [size]="30" /></span>
@@ -88,12 +93,32 @@ import { DIMENSION_LABELS, StorageInput, StorageSummary, StoragesService, contai
             </li>
           }
         </ul>
+        @if (storages().length > 1) {
+          <p class="hint reorder-hint with-icon"><app-icon name="selector" [size]="14" />Zum Sortieren eine Kachel 1 Sekunde gedrückt halten und ziehen.</p>
+        }
       }
     </section>
   `,
   host: { '(document:keydown.escape)': 'closeCreate()' },
 })
 export class StorageList {
+  protected ids = computed(() => this.storages().map((x) => x.id));
+
+  /** Vorschau während des Ziehens */
+  protected preview(ids: number[]) {
+    this.storages.set(byIds(this.storages(), ids));
+  }
+
+  /** Reihenfolge für alle speichern; bei Fehler den Serverstand zurückholen */
+  protected async saveOrder(ids: number[]) {
+    try {
+      this.storages.set(await this.api.order(ids));
+    } catch (err) {
+      this.error.set(errorMessage(err));
+      this.storages.set(await this.api.list());
+    }
+  }
+
   private api = inject(StoragesService);
   private router = inject(Router);
 

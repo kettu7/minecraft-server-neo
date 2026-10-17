@@ -5,7 +5,7 @@ import { StorageForm } from './storage-form';
 import {
   DIMENSION_LABELS, Storage, StorageInput, StoragesService, amountLabel, containerGroups, errorMessage, formatDate, reportErrors,
 } from './projects.service';
-import { ItemIcon, ItemLanguageSwitch, ItemLibrary } from './items';
+import { CreativeTab, CreativeTabs, ItemIcon, ItemLanguageSwitch, ItemLibrary } from './items';
 import { AuthService } from './auth';
 import { Icon } from './icon';
 
@@ -14,7 +14,7 @@ const POLL_MS = 30_000;
 
 @Component({
   selector: 'app-storage-detail',
-  imports: [RouterLink, DecimalPipe, StorageForm, ItemIcon, ItemLanguageSwitch, Icon],
+  imports: [RouterLink, DecimalPipe, StorageForm, ItemIcon, ItemLanguageSwitch, CreativeTabs, Icon],
   template: `
     <a routerLink="/lager" class="back-button"><app-icon name="arrow-left" [size]="16" />Alle Lager</a>
 
@@ -120,6 +120,7 @@ const POLL_MS = 30_000;
         </div>
         <span class="hint">{{ filtered().length }} von {{ s.stock.length }} Sorten</span>
       </div>
+      <app-creative-tabs [counts]="counts()" [(value)]="tab" />
 
       <table class="materials">
         <thead>
@@ -161,11 +162,17 @@ export class StorageDetail {
   scanning = signal(false);
   editOpen = signal(false);
   query = signal('');
+  tab = signal<CreativeTab | 'all'>('all');
   groups = (s: Storage) => containerGroups(s.containers);
 
-  filtered = computed(() => {
+  private matching = computed(() => {
     const q = this.query();
     return (this.storage()?.stock ?? []).filter((i) => this.library.matches(i.item, q));
+  });
+  counts = computed(() => this.library.tabCounts(this.matching().map((i) => i.item)));
+  filtered = computed(() => {
+    const tab = this.tab();
+    return this.matching().filter((i) => tab === 'all' || this.library.tab(i.item) === tab);
   });
 
   readonly dims = DIMENSION_LABELS;

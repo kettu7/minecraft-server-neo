@@ -7,6 +7,7 @@
 // isometrisch gerendert (eigener kleiner Software-Renderer, keine nativen Abhängigkeiten).
 // Die Bilder sind Mojang-Assets: nur lokal erzeugen, nicht ins Repo/öffentlich verteilen.
 import Zip from 'adm-zip';
+import { creativeTab } from './creative-tabs.ts';
 import { PNG } from 'pngjs';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -410,8 +411,22 @@ for (const [short, code] of Object.entries(EXTRA_LANGS)) {
   if (data) extraLangs[short] = data;
 }
 
+/* Item-Tags (data/minecraft/tags/item) inkl. verschachtelter Tags → id → Tag-Namen */
+const rawTags = new Map<string, string[]>();
+for (const entry of zip.getEntries()) {
+  const m = /^data\/minecraft\/tags\/item\/(.+)\.json$/.exec(entry.entryName);
+  if (m) rawTags.set(m[1], (JSON.parse(entry.getData().toString('utf8')).values ?? []).map((v: string | { id: string }) => (typeof v === 'string' ? v : v.id)));
+}
+const expand = (tag: string, seen = new Set<string>()): string[] => {
+  if (seen.has(tag)) return [];
+  seen.add(tag);
+  return (rawTags.get(tag) ?? []).flatMap((v) => (v.startsWith('#') ? expand(v.slice(1).replace(/^minecraft:/, ''), seen) : [v.replace(/^minecraft:/, '')]));
+};
+const tagsOf = new Map<string, Set<string>>();
+for (const tag of rawTags.keys()) for (const id of expand(tag)) (tagsOf.get(id) ?? tagsOf.set(id, new Set()).get(id)!).add(tag);
+
 mkdirSync(outDir, { recursive: true });
-const library: Array<{ id: string; name: string; names: Record<string, string>; icon: boolean; kind: string }> = [];
+const library: Array<{ id: string; name: string; names: Record<string, string>; icon: boolean; kind: string; tab: string }> = [];
 const missing: string[] = [];
 
 for (const entry of zip.getEntries()) {
@@ -449,10 +464,17 @@ for (const entry of zip.getEntries()) {
     names,
     icon: !!image,
     kind,
+    tab: creativeTab(id, `block.minecraft.${id}` in lang, tagsOf.get(id) ?? new Set()),
   });
 }
 
 library.sort((a, b) => a.name.localeCompare(b.name));
+
+// Creative-Tabs als eigene kleine Datei im Repo (nur IDs, keine Mojang-Assets) – kommt so mit jedem Deploy mit
+const tabs: Record<string, string[]> = {};
+for (const item of library) (tabs[item.tab] ??= []).push(item.id);
+for (const ids of Object.values(tabs)) ids.sort();
+writeFileSync(join(import.meta.dirname, '..', '..', 'web', 'public', 'creative-tabs.json'), JSON.stringify(tabs));
 writeFileSync(join(outDir, 'items.json'), JSON.stringify({ source: jarPath.split(/[\\/]/).at(-1), languages: ['en', ...Object.keys(extraLangs)], items: library }));
 console.log(`${library.length} Items, ${library.length - missing.length} mit Bild → ${outDir}`);
 if (missing.length) console.log(`Ohne Bild (${missing.length}): ${missing.join(', ')}`);

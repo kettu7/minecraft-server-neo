@@ -115,7 +115,8 @@ werden 10 Sekunden vorher gewarnt. Ausgeführt vom Steuerdienst `neo-control`.
   docker cp mc-neo:/data/bluemap/minecraft-client-26.3.jar .cache/
   cd api; npm run items
   ```
-  Ergebnis: `web/public/items/<id>.png` (64×64, Blöcke isometrisch gerendert) und `items.json` mit englischen und
+  Ergebnis: `web/public/items/<id>.png` (64×64, Blöcke isometrisch gerendert), `web/public/creative-tabs.json`
+  (Zuordnung zu den Creative-Tabs, nur IDs – liegt im Repo) und `items.json` mit englischen und
   deutschen Namen (Sprachdatei `de_de.json` wird einmalig von Mojangs Download-Server geladen, Prüfsumme kontrolliert,
   in `.cache/lang/`). Auf der Website schaltet **DE | EN** neben Suche/Filter nur die Item-Namen um.
   Ohne Bibliothek läuft die Website weiter, nur ohne Bilder. Die Bilder sind Mojang-Assets und bleiben

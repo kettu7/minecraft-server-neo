@@ -1,11 +1,10 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
-import { ItemIcon, ItemLanguageSwitch, ItemLibrary } from './items';
-import { Icon } from './icon';
+import { CreativeTab, CreativeTabs, ItemIcon, ItemLanguageSwitch, ItemLibrary } from './items';
 
 @Component({
   selector: 'app-item-browser',
-  imports: [ItemIcon, ItemLanguageSwitch, DecimalPipe],
+  imports: [ItemIcon, ItemLanguageSwitch, CreativeTabs, DecimalPipe],
   template: `
     <header class="page-head">
       <span class="eyebrow">Nachschlagewerk</span>
@@ -27,6 +26,7 @@ import { Icon } from './icon';
           </div>
           <span class="hint">{{ filtered().length | number }} Treffer</span>
         </div>
+        <app-creative-tabs [counts]="counts()" [(value)]="tab" />
 
         <ul class="item-grid">
           @for (i of visible(); track i.id) {
@@ -49,15 +49,23 @@ import { Icon } from './icon';
 export class ItemBrowser {
   protected library = inject(ItemLibrary);
   query = signal('');
+  tab = signal<CreativeTab | 'all'>('all');
   limit = signal(240);
   copied = signal('');
+
+  /** Treffer der Suche (vor dem Tab-Filter) – daraus die Zahlen an den Tabs */
+  private matching = computed(() => {
+    const q = this.query();
+    return this.library.items().filter((i) => i.id !== 'air' && this.library.matches(i.id, q));
+  });
+  counts = computed(() => this.library.tabCounts(this.matching().map((i) => i.id)));
 
   /** Alphabetisch in der gewählten Sprache; Suche findet beide Sprachen */
   filtered = computed(() => {
     const lang = this.library.language();
-    const q = this.query();
-    return this.library.items()
-      .filter((i) => this.library.matches(i.id, q))
+    const tab = this.tab();
+    return this.matching()
+      .filter((i) => tab === 'all' || this.library.tab(i.id) === tab)
       .map((i) => ({ item: i, name: this.library.name(i.id) }))
       .sort((a, b) => a.name.localeCompare(b.name, lang))
       .map((x) => x.item);

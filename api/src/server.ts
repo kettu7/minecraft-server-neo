@@ -22,7 +22,7 @@ import {
 import { refresh, refreshStatus, startScheduler, type RefreshReport } from './refresh.ts';
 import {
   SCHEMATIC_DIR, allStorageIds, createProject, createStorage, deleteProject, deleteStorage, getProject, getStorage, getStorageArea,
-  listProjects, listStorages, projectIdsWithPlacement, setPlacement, setProjectStorages, storageIdsOfProject,
+  listProjects, listStorages, setOrder, projectIdsWithPlacement, setPlacement, setProjectStorages, storageIdsOfProject,
   updateStorage, type StorageInput,
 } from './db.ts';
 
@@ -50,6 +50,24 @@ function sendRefresh<T>(reply: FastifyReply, report: RefreshReport, body: T) {
 /* ───────────────────────── Projekte ───────────────────────── */
 
 app.get('/api/projects', async () => listProjects());
+
+// Reihenfolge der Kacheln für alle (Drag & Drop in der Übersicht)
+const orderIds = (body: unknown) => {
+  const ids = (body as { ids?: unknown })?.ids;
+  return Array.isArray(ids) && ids.length <= 1000 && ids.every((id) => Number.isInteger(id) && id > 0) ? (ids as number[]) : null;
+};
+app.put<{ Body: { ids?: number[] } }>('/api/projects/order', async (req, reply) => {
+  const ids = orderIds(req.body);
+  if (!ids) return reply.code(400).send({ error: 'Ungültige Reihenfolge.' });
+  setOrder('projects', ids);
+  return listProjects();
+});
+app.put<{ Body: { ids?: number[] } }>('/api/storages/order', async (req, reply) => {
+  const ids = orderIds(req.body);
+  if (!ids) return reply.code(400).send({ error: 'Ungültige Reihenfolge.' });
+  setOrder('storages', ids);
+  return listStorages();
+});
 
 app.get<{ Params: { id: string } }>('/api/projects/:id', async (req, reply) => {
   const project = getProject(Number(req.params.id));
