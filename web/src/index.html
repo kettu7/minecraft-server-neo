@@ -7,6 +7,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta name="theme-color" content="#090d18">
+  <script>
+    // Hintergrundbild nach Uhrzeit des Browsers: 8–12 dawn, 12–18 noon, 18–22 dusk, 22–8 midnight
+    (function () {
+      function daytime() {
+        var h = new Date().getHours();
+        return h >= 8 && h < 12 ? 'dawn' : h >= 12 && h < 18 ? 'noon' : h >= 18 && h < 22 ? 'dusk' : 'midnight';
+      }
+      function apply() { document.documentElement.setAttribute('data-daytime', daytime()); }
+      apply();
+      setInterval(apply, 5 * 60 * 1000);
+    })();
+  </script>
 </head>
 <body>
   <app-root></app-root>

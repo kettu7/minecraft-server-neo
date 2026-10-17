@@ -69,16 +69,21 @@ body {
   -webkit-font-smoothing: antialiased;
   background: transparent;
 }
-/* Stimmungsbild: nur im oberen Bereich, läuft nach unten und zu den Seiten weich aus, scrollt mit */
+/* Stimmungsbild: nur im oberen Bereich, am oberen Rand angedockt, läuft nach unten und zu den Seiten weich aus, scrollt mit.
+   Motiv nach Tageszeit (data-daytime setzt index.html anhand der Uhrzeit des Browsers) */
 body::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0; height: min(95vh, 1000px); z-index: -2; pointer-events: none;
-  background: url("/bg/bambus.jpg") center 30% / cover no-repeat;
+  background: url("/bg/noon.jpg") center top / cover no-repeat;
   opacity: .28; filter: saturate(1.1) brightness(1.05);
   -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, .8) 20%, rgba(0, 0, 0, .5) 45%, rgba(0, 0, 0, .22) 68%, rgba(0, 0, 0, .07) 85%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 22%, #000 78%, transparent 100%);
   -webkit-mask-composite: source-in;
   mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, .8) 20%, rgba(0, 0, 0, .5) 45%, rgba(0, 0, 0, .22) 68%, rgba(0, 0, 0, .07) 85%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 22%, #000 78%, transparent 100%);
   mask-composite: intersect;
 }
+
+html[data-daytime="dawn"] body::before { background-image: url("/bg/dawn.jpg"); }
+html[data-daytime="dusk"] body::before { background-image: url("/bg/dusk.jpg"); }
+html[data-daytime="midnight"] body::before { background-image: url("/bg/midnight.jpg"); }
 
 /* Farbiger Lichtschein oben links/rechts, nach unten ausgeblendet */
 body::after {
