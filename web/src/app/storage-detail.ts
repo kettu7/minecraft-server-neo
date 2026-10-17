@@ -36,7 +36,7 @@ const POLL_MS = 30_000;
           <button type="button" class="secondary with-icon" (click)="editOpen.set(!editOpen())" [attr.aria-expanded]="editOpen()">
             <app-icon name="pencil" [size]="15" />Bereich bearbeiten
           </button>
-          <a class="button-link with-icon" routerLink="/karte" [queryParams]="{ x: s.x, y: s.y, z: s.z, dim: s.dimension }">
+          <a class="button secondary with-icon" routerLink="/karte" [queryParams]="{ x: s.x, y: s.y, z: s.z, dim: s.dimension }">
             <app-icon name="map-2" [size]="15" />Auf Karte zeigen
           </a>
           <button type="button" class="with-icon" (click)="scan(s)" [disabled]="busy()">
