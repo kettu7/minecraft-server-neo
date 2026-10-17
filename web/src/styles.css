@@ -1678,11 +1678,8 @@ body:has(app-dashboard)::before { opacity: .34; }
 }
 
 /* ───────────────────────── Creative-Tabs ───────────────────────── */
-.creative-tabs {
-  display: flex; gap: .4rem; overflow-x: auto; scrollbar-width: none; padding: .2rem .1rem .3rem; margin: -.25rem 0 0;
-  mask-image: linear-gradient(90deg, #000 calc(100% - 2rem), transparent);
-}
-.creative-tabs::-webkit-scrollbar { display: none; }
+/* Tabs brechen um (kein seitliches Scrollen – mit der Maus nicht bedienbar) */
+.creative-tabs { display: flex; flex-wrap: wrap; gap: .4rem; margin: -.25rem 0 0; }
 .creative-tabs button {
   display: inline-flex; align-items: center; gap: .5rem; flex-shrink: 0; white-space: nowrap;
   font: 600 .84rem/1 var(--font-body); letter-spacing: 0; text-transform: none; color: var(--muted);
