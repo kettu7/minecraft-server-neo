@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CATEGORIES, rank, type PlayerStats } from '../src/stats.ts';
+import { CATEGORIES, dummyPlayers, rank, type PlayerStats } from '../src/stats.ts';
 
 const value = (key: string, stats: PlayerStats) => CATEGORIES.find((c) => c.key === key)!.value(stats);
 
@@ -24,4 +24,11 @@ test('Rangliste sortiert absteigend, zieht den Nullpunkt ab und lässt Nullen we
   ] as never;
   const deaths = rank(players, { b: { unlucky: 7 }, c: { unlucky: 2 } }).find((c) => c.key === 'unlucky')!;
   assert.deepEqual(deaths.players, [{ name: 'Anna', value: 5, place: 1 }, { name: 'Ben', value: 1, place: 2 }]);
+});
+
+test('Beispiel-Spieler: 9 erfundene Namen, immer gleiche Werte, alle Kategorien belegt', () => {
+  const a = dummyPlayers();
+  assert.equal(a.length, 9);
+  assert.deepEqual(a, dummyPlayers());
+  for (const c of CATEGORIES) assert.ok(a.every((p) => p.values[c.key] > 0), c.key);
 });

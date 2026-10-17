@@ -55,6 +55,17 @@ const ROTATE_MS = 8_000;
   selector: 'app-dashboard',
   imports: [RouterLink, DecimalPipe, PercentPipe, ItemIcon, Icon],
   template: `
+    <!-- Marke groß und zentriert -->
+    <div class="dash-brand" aria-hidden="true">
+      <svg viewBox="0 0 32 32">
+        <path d="M16 2 29 9.5 16 17 3 9.5Z" fill="#7cf279" />
+        <path d="M3 9.5 16 17v13L3 22.5Z" fill="#2fb836" />
+        <path d="M29 9.5 16 17v13l13-7.5Z" fill="#1c7a22" />
+        <path d="M16 17v13M3 9.5 16 17l13-7.5" stroke="#08210a" stroke-opacity=".35" fill="none" />
+      </svg>
+      <span>Minecraft <b>Neo</b></span>
+    </div>
+
     <header class="page-head">
       <span class="eyebrow">Dashboard</span>
       <h1>{{ greeting() }}, {{ auth.me()?.displayName }}</h1>
@@ -124,6 +135,55 @@ const ROTATE_MS = 8_000;
       </a>
     </div>
 
+    <!-- Ranglisten als Karussell -->
+    @if (rankings().length) {
+      <section class="dash-section" (mouseenter)="paused.set(true)" (mouseleave)="paused.set(false)"
+               (focusin)="paused.set(true)" (focusout)="paused.set(false)">
+        <header class="section-head">
+          <h2 class="with-icon"><app-icon name="trophy" [size]="20" />Ranglisten</h2>
+          <div class="rail-arrows">
+            <button type="button" class="icon-btn framed" (click)="step(-1)" aria-label="Vorherige Rangliste"><app-icon name="chevron-left" [size]="16" /></button>
+            <button type="button" class="icon-btn framed" (click)="step(1)" aria-label="Nächste Rangliste"><app-icon name="chevron-right" [size]="16" /></button>
+          </div>
+        </header>
+        <div class="rail rank-rail" #rankRail (scroll)="onRankScroll()" (scrollend)="onRankScrollEnd()" aria-roledescription="Karussell">
+          @for (c of rankings(); track c.key) {
+            <article class="rank-card" [style.--rank]="look(c.key).color" [attr.aria-label]="c.title">
+              <header class="rank-head">
+                <span class="rank-icon"><app-icon [name]="look(c.key).icon" [size]="22" /></span>
+                <div>
+                  <h3>{{ c.title }}</h3>
+                  <span class="hint">{{ c.caption }}</span>
+                </div>
+              </header>
+              @if (c.players.length) {
+                <ol class="rank-list">
+                  @for (p of c.players; track p.place) {
+                    <li [class.me]="isMe(p.name)" [attr.data-place]="p.place">
+                      <span class="rank-place">{{ p.place }}</span>
+                      <span class="rank-name">{{ p.name }}</span>
+                      <span class="rank-value">{{ format(p.value, c.unit) }}</span>
+                    </li>
+                  }
+                </ol>
+                @if (c.me && c.me.place > c.players.length) {
+                  <p class="rank-me"><span>Du</span>Platz {{ c.me.place }}<span class="sep" aria-hidden="true"></span>{{ format(c.me.value, c.unit) }}</p>
+                }
+              } @else {
+                <p class="hint rank-empty">Noch niemand – das ist deine Chance.</p>
+              }
+            </article>
+          }
+        </div>
+        <div class="rail-dots" role="tablist" aria-label="Ranglisten">
+          @for (d of pages(); track d) {
+            <button type="button" role="tab" [class.active]="page() === d" [attr.aria-selected]="page() === d"
+                    (click)="goTo(d)" [attr.aria-label]="'Seite ' + (d + 1)"></button>
+          }
+        </div>
+      </section>
+    }
+
     <!-- Bauprojekte als Reihe -->
     <section class="dash-section">
       <header class="section-head">
@@ -184,54 +244,6 @@ const ROTATE_MS = 8_000;
       </section>
     }
 
-    <!-- Ranglisten als Karussell -->
-    @if (rankings().length) {
-      <section class="dash-section" (mouseenter)="paused.set(true)" (mouseleave)="paused.set(false)"
-               (focusin)="paused.set(true)" (focusout)="paused.set(false)">
-        <header class="section-head">
-          <h2 class="with-icon"><app-icon name="trophy" [size]="20" />Ranglisten</h2>
-          <div class="rail-arrows">
-            <button type="button" class="icon-btn framed" (click)="step(-1)" aria-label="Vorherige Rangliste"><app-icon name="chevron-left" [size]="16" /></button>
-            <button type="button" class="icon-btn framed" (click)="step(1)" aria-label="Nächste Rangliste"><app-icon name="chevron-right" [size]="16" /></button>
-          </div>
-        </header>
-        <div class="rail rank-rail" #rankRail (scroll)="onRankScroll()" (scrollend)="onRankScrollEnd()" aria-roledescription="Karussell">
-          @for (c of rankings(); track c.key) {
-            <article class="rank-card" [style.--rank]="look(c.key).color" [attr.aria-label]="c.title">
-              <header class="rank-head">
-                <span class="rank-icon"><app-icon [name]="look(c.key).icon" [size]="22" /></span>
-                <div>
-                  <h3>{{ c.title }}</h3>
-                  <span class="hint">{{ c.caption }}</span>
-                </div>
-              </header>
-              @if (c.players.length) {
-                <ol class="rank-list">
-                  @for (p of c.players; track p.name) {
-                    <li [class.me]="isMe(p.name)" [attr.data-place]="p.place">
-                      <span class="rank-place">{{ p.place }}</span>
-                      <span class="rank-name">{{ p.name }}</span>
-                      <span class="rank-value">{{ format(p.value, c.unit) }}</span>
-                    </li>
-                  }
-                </ol>
-                @if (c.me && c.me.place > c.players.length) {
-                  <p class="rank-me"><span>Du</span>Platz {{ c.me.place }}<span class="sep" aria-hidden="true"></span>{{ format(c.me.value, c.unit) }}</p>
-                }
-              } @else {
-                <p class="hint rank-empty">Noch niemand – das ist deine Chance.</p>
-              }
-            </article>
-          }
-        </div>
-        <div class="rail-dots" role="tablist" aria-label="Ranglisten">
-          @for (d of pages(); track d) {
-            <button type="button" role="tab" [class.active]="page() === d" [attr.aria-selected]="page() === d"
-                    (click)="goTo(d)" [attr.aria-label]="'Seite ' + (d + 1)"></button>
-          }
-        </div>
-      </section>
-    }
   `,
 })
 export class Dashboard {

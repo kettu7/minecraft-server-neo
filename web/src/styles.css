@@ -1631,3 +1631,33 @@ a.button.secondary:focus-visible { outline: 2px solid var(--accent); outline-off
   .pulse-dot { animation: none; }
   .rail-card, .rail-thumb img, .rail-dots button { transition: none; }
 }
+
+/* Dashboard: Hintergrundbild hier 20 % weniger transparent (.28 → .34) */
+body:has(app-dashboard)::before { opacity: .34; }
+
+/* Marke oben zentriert; der Seitenkopf beginnt dadurch ca. 20 rem unter der Navigation */
+.dash-brand {
+  display: flex; align-items: center; justify-content: center; gap: 1.1rem;
+  padding: 4.5rem 0 6rem; margin-bottom: -.5rem;
+}
+.dash-brand svg { width: 4.5rem; height: 4.5rem; flex-shrink: 0; filter: drop-shadow(0 8px 24px var(--accent-glow)); }
+.dash-brand span {
+  font: 800 clamp(2.4rem, 7vw, 4rem)/1 var(--font-display); letter-spacing: -0.03em; color: var(--text);
+  text-shadow: 0 6px 30px rgba(0, 0, 0, .55);
+}
+.dash-brand b { font-weight: inherit; color: var(--accent); text-shadow: 0 0 28px var(--accent-glow); }
+@media (max-width: 620px) {
+  .dash-brand { padding: 2rem 0 2.5rem; gap: .75rem; }
+  .dash-brand svg { width: 3rem; height: 3rem; }
+}
+
+/* Status-Punkt mittig zur Zeile „Server online“ statt zum ganzen Block */
+.server-hero-state { align-items: flex-start; }
+.server-hero-state .pulse-dot { margin-top: calc((1.6rem * 1.15 - 14px) / 2); }
+
+/* Rangliste als eine Fläche: keine einzelnen Kästchen, kein Farbbalken links */
+.rank-list { gap: 0; padding: .3rem; border-radius: 10px; background: rgba(0, 0, 0, .22); border: 1px solid rgba(255, 255, 255, .04); }
+.rank-list li, .rank-list li:nth-child(odd) { background: none; }
+.rank-list li + li { border-top: 1px solid rgba(255, 255, 255, .04); }
+.rank-list li.me { background: none; box-shadow: none; }
+.rank-list li.me .rank-name { color: var(--rank); }
