@@ -15,7 +15,7 @@ const CONTROL_URL = process.env.CONTROL_URL ?? '';
 const MC_DATA_DIR = process.env.MC_DATA_DIR ?? '';
 export const WARNING_SECONDS = 10;
 /** Adresse, unter der Spieler den Server erreichen (z. B. minecraft-neo.de); lokal localhost */
-const MC_ADDRESS = process.env.MC_ADDRESS ?? 'localhost';
+export const MC_ADDRESS = process.env.MC_ADDRESS ?? 'localhost';
 
 /* ───────────────────────── Hilfen ───────────────────────── */
 
@@ -71,15 +71,15 @@ async function whitelistState() {
 }
 
 /** Kurzstatus für die Kopfzeile aller Mitglieder: Zustand und Spielerzahl, 10 s zwischengespeichert */
-export interface LiveStatus { state: 'online' | 'starting' | 'offline'; online: number; max: number }
+export interface LiveStatus { state: 'online' | 'starting' | 'offline'; online: number; max: number; names: string[] }
 let live: { at: number; value: Promise<LiveStatus> } | null = null;
 export function liveStatus(): Promise<LiveStatus> {
   if (live && Date.now() - live.at < 10_000) return live.value;
   const value = (async (): Promise<LiveStatus> => {
     const players = await rcon('list').then(([a]) => parsePlayerList(a)).catch(() => null);
-    if (players) return { state: 'online', online: players.online, max: players.max };
+    if (players) return { state: 'online', ...players };
     const c = CONTROL_URL ? ((await control('GET', '/status', 5_000).catch(() => null)) as { running?: boolean } | null) : null;
-    return { state: c?.running ? 'starting' : 'offline', online: 0, max: 0 };
+    return { state: c?.running ? 'starting' : 'offline', online: 0, max: 0, names: [] };
   })();
   live = { at: Date.now(), value };
   return value;
@@ -229,8 +229,8 @@ export async function registerServerAdmin(app: FastifyInstance) {
     return { ok: true };
   });
 
+  // Für alle Mitglieder (Dashboard, Spieler-Chips)
   app.get<{ Params: { name: string } }>('/api/server/skins/:name', async (req, reply) => {
-    if (!requireAdmin(req, reply)) return;
     if (!MINECRAFT_NAME.test(req.params.name)) return reply.code(400).send({ error: 'Ungültiger Spielername.' });
     const data = await skin(req.params.name).catch(() => null);
     if (!data) return reply.code(404).send({ error: 'Kein Skin.' });

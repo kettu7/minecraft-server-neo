@@ -17,7 +17,7 @@ const POLL_MS = 30_000;
   selector: 'app-project-detail',
   imports: [RouterLink, DecimalPipe, PercentPipe, KeyValuePipe, ItemIcon, ItemLanguageSwitch, ProjectImage, Icon],
   template: `
-    <a routerLink="/" class="back-button"><app-icon name="arrow-left" [size]="16" />Alle Projekte</a>
+    <a routerLink="/projekte" class="back-button"><app-icon name="arrow-left" [size]="16" />Alle Projekte</a>
 
     @if (project(); as p) {
       <div class="detail-top">
@@ -417,7 +417,7 @@ export class ProjectDetail {
     if (!confirm(`Projekt „${p.name}“ wirklich löschen?`)) return;
     try {
       await this.api.delete(p.id);
-      this.router.navigate(['/']);
+      this.router.navigate(['/projekte']);
     } catch (err) {
       this.error.set(errorMessage(err));
     }

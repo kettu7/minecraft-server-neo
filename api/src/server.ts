@@ -8,8 +8,9 @@ import { parseLitematic } from './litematic.ts';
 import { DIMENSIONS, MIRRORS, ROTATIONS, type Placement } from './progress.ts';
 import { MAX_HEIGHT, MAX_RADIUS, MAX_SCAN_POSITIONS, scanVolume } from './storage.ts';
 import { registerAuth, requireAdmin } from './auth.ts';
-import { liveStatus, registerServerAdmin } from './server-admin.ts';
-import { registerAutoRestart } from './auto-restart.ts';
+import { liveStatus, MC_ADDRESS, registerServerAdmin } from './server-admin.ts';
+import { registerStats, rankingSettings } from './stats.ts';
+import { nextRestartAt, registerAutoRestart } from './auto-restart.ts';
 import { registerProjectImages, removeProjectImages } from './project-images.ts';
 import { registerMods } from './mods.ts';
 import { registerModpack } from './modpack.ts';
@@ -33,6 +34,7 @@ await app.register(multipart, { limits: { fileSize: 20 * 1024 * 1024, files: 2 }
 await registerAuth(app);
 await registerServerAdmin(app);
 await registerAutoRestart(app);
+await registerStats(app);
 await registerProjectImages(app);
 await registerMods(app);
 await registerModpack(app);
@@ -246,7 +248,18 @@ app.get<{ Params: { id: string } }>('/api/backups/:id/download', async (req, rep
 
 /* ───────────────────────── Aktualisierung ───────────────────────── */
 
-app.get('/api/status', async () => ({ ...refreshStatus(), server: await liveStatus() }));
+app.get('/api/status', async () => {
+  const { names: _names, ...server } = await liveStatus();
+  return { ...refreshStatus(), server };
+});
+
+// Dashboard: Server mit Spielernamen, Adresse und nächstem geplanten Neustart
+app.get('/api/dashboard', async () => ({
+  server: await liveStatus(),
+  address: MC_ADDRESS,
+  nextRestartAt: nextRestartAt(),
+  rankings: rankingSettings().enabled,
+}));
 
 app.post('/api/refresh', async (req, reply) => {
   const report = await refresh({ storageIds: allStorageIds(), projectIds: projectIdsWithPlacement() }, 'manual', req.log);

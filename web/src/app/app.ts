@@ -1,5 +1,6 @@
-import { Component, effect, inject, signal } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Component, ElementRef, effect, inject, signal, viewChild } from '@angular/core';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Icon } from './icon';
 import { Status, StoragesService } from './projects.service';
 import { AuthService } from './auth';
 import { isDemo } from './demo';
@@ -7,7 +8,7 @@ import { isDemo } from './demo';
 const STATUS_POLL_MS = 15_000;
 
 @Component({
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, Icon],
   selector: 'app-root',
   template: `
     <header class="topbar">
@@ -24,11 +25,14 @@ const STATUS_POLL_MS = 15_000;
 
       @if (auth.isMember()) {
         <nav>
-          <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Bauprojekte</a>
+          <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Dashboard</a>
+          <a routerLink="/projekte" routerLinkActive="active">Bauprojekte</a>
           <a routerLink="/lager" routerLinkActive="active">Lager</a>
-          <a routerLink="/items" routerLinkActive="active">Items</a>
           <a routerLink="/karte" routerLinkActive="active">Karte</a>
-          <a routerLink="/modpack" routerLinkActive="active">Modpack</a>
+          <button type="button" class="nav-more" [class.active]="moreActive()" (click)="toggleMore($event)"
+                  aria-haspopup="menu" [attr.aria-expanded]="moreOpen()">
+            Mehr<app-icon name="chevron-down" [size]="14" />
+          </button>
           @if (auth.isAdmin()) {
             <a routerLink="/admin" routerLinkActive="active">Admin</a>
           }
@@ -65,6 +69,12 @@ const STATUS_POLL_MS = 15_000;
         </a>
       }
     </header>
+    <!-- „Mehr“-Menü im Top-Layer, damit die (auf dem Handy scrollbare) Navigation es nicht abschneidet -->
+    <div #more popover class="row-menu nav-menu" role="menu" [style.top.px]="morePos().top" [style.left.px]="morePos().left"
+         (toggle)="moreOpen.set($any($event).newState === 'open')">
+      <a role="menuitem" routerLink="/items" routerLinkActive="active" (click)="closeMore()"><app-icon name="stack-2" [size]="16" />Items</a>
+      <a role="menuitem" routerLink="/modpack" routerLinkActive="active" (click)="closeMore()"><app-icon name="package" [size]="16" />Modpack</a>
+    </div>
     <main>
       <router-outlet />
     </main>
@@ -76,8 +86,30 @@ export class App {
   private api = inject(StoragesService);
   protected status = signal<Status | undefined>(undefined);
   private timer?: ReturnType<typeof setInterval>;
+  private router = inject(Router);
+  private more = viewChild.required<ElementRef<HTMLElement>>('more');
+  protected moreOpen = signal(false);
+  protected morePos = signal({ top: 0, left: 0 });
+  protected moreActive = signal(false);
+
+  /** Menü unter dem „Mehr“-Button öffnen */
+  protected toggleMore(event: MouseEvent) {
+    const el = this.more().nativeElement;
+    if (this.moreOpen()) return el.hidePopover();
+    const r = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    this.morePos.set({ top: r.bottom + 8, left: Math.min(r.left, innerWidth - 228) });
+    el.showPopover();
+  }
+
+  protected closeMore() {
+    this.more().nativeElement.hidePopover();
+  }
 
   constructor() {
+    // „Mehr“ hervorheben, wenn eine Seite daraus offen ist
+    this.router.events.subscribe((e) => {
+      if (e instanceof NavigationEnd) this.moreActive.set(/^\/(items|modpack)(\/|$|\?)/.test(e.urlAfterRedirects));
+    });
     // Server-Status nur für freigeschaltete Mitglieder abfragen
     effect(() => {
       clearInterval(this.timer);

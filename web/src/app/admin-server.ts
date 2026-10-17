@@ -18,6 +18,8 @@ export interface ServerInfo {
   address: { host: string; ip: string | null };
 }
 
+export interface RankingSettings { enabled: boolean; resetAt: string | null }
+
 export interface AutoRestart { enabled: boolean; time: string; nextAt: string | null }
 
 @Injectable({ providedIn: 'root' })
@@ -29,6 +31,9 @@ export class ServerService {
   ban(name: string, reason: string) { return firstValueFrom(this.http.post('/api/server/ban', { name, reason })); }
   say(message: string) { return firstValueFrom(this.http.post('/api/server/say', { message })); }
   restart() { return firstValueFrom(this.http.post('/api/server/restart', {})); }
+  ranking() { return firstValueFrom(this.http.get<RankingSettings>('/api/rankings/settings')); }
+  setRanking(enabled: boolean) { return firstValueFrom(this.http.post<RankingSettings>('/api/rankings/settings', { enabled })); }
+  resetRanking() { return firstValueFrom(this.http.post<RankingSettings>('/api/rankings/reset', {})); }
   autoRestart() { return firstValueFrom(this.http.get<AutoRestart>('/api/server/auto-restart')); }
   setAutoRestart(body: Partial<AutoRestart>) { return firstValueFrom(this.http.post<AutoRestart>('/api/server/auto-restart', body)); }
   stop() { return firstValueFrom(this.http.post('/api/server/stop', {})); }
@@ -185,6 +190,24 @@ const POLL_MS = 5_000;
             </label>
           </div>
         }
+
+        @if (ranking(); as r) {
+          <div class="setting">
+            <label class="switch-row">
+              <span class="switch">
+                <input type="checkbox" [checked]="r.enabled" (change)="toggleRanking($any($event.target).checked)" [disabled]="busy()" />
+                <span></span>
+              </span>
+              <span class="switch-text">
+                <strong>Ranglisten im Dashboard</strong>
+                <span class="hint">{{ r.resetAt ? 'Zählt seit ' + day(r.resetAt) : 'Zählt seit Beginn' }}<span class="sep" aria-hidden="true"></span>Ausblenden löscht nichts</span>
+              </span>
+            </label>
+            <button type="button" class="secondary compact with-icon" (click)="resetRanking()" [disabled]="busy()">
+              <app-icon name="rotate" [size]="14" />Zurücksetzen
+            </button>
+          </div>
+        }
       </section>
 
       <details class="card" (toggle)="backupsOpen.set($any($event.target).open)">
@@ -204,6 +227,7 @@ export class AdminServer {
   protected action = signal<'' | 'restart' | 'stop' | 'start'>('');
   protected backupsOpen = signal(false);
   protected autoRestart = signal<AutoRestart | undefined>(undefined);
+  protected ranking = signal<RankingSettings | undefined>(undefined);
   protected error = signal('');
   protected notice = signal('');
   protected copied = signal('');
@@ -241,9 +265,10 @@ export class AdminServer {
 
   private async load() {
     try {
-      const [info, autoRestart] = await Promise.all([this.api.info(), this.api.autoRestart()]);
+      const [info, autoRestart, ranking] = await Promise.all([this.api.info(), this.api.autoRestart(), this.api.ranking()]);
       this.info.set(info);
       this.autoRestart.set(autoRestart);
+      this.ranking.set(ranking);
     } catch (err) {
       this.error.set(errorMessage(err));
     }
@@ -253,6 +278,19 @@ export class AdminServer {
     const fields = [{ label: 'Adresse', value: i.address.host }];
     if (i.address.ip && i.address.ip !== i.address.host) fields.push({ label: 'IP', value: i.address.ip });
     return fields;
+  }
+
+  toggleRanking(enabled: boolean) {
+    this.run(async () => this.ranking.set(await this.api.setRanking(enabled)), enabled ? 'Ranglisten werden angezeigt.' : 'Ranglisten sind ausgeblendet.');
+  }
+
+  resetRanking() {
+    if (!confirm('Alle Ranglisten auf 0 setzen?\n\nDie Statistiken im Spiel bleiben erhalten – gezählt wird ab jetzt neu.')) return;
+    this.run(async () => this.ranking.set(await this.api.resetRanking()), 'Ranglisten zurückgesetzt – ab jetzt wird neu gezählt.');
+  }
+
+  protected day(iso: string) {
+    return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
 
   saveAutoRestart(change: Partial<AutoRestart>) {

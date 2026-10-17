@@ -64,6 +64,10 @@ await get('/api/users');
 await get('/api/bans');
 await get('/api/audit');
 await get('/api/server');
+await get('/api/server/auto-restart');
+await get('/api/dashboard');
+await get('/api/rankings');
+await get('/api/rankings/settings');
 await get('/api/backups');
 const mods = await get('/api/mods');
 for (const v of [...(mods?.minecraft?.newerReleases ?? []), ...(mods?.minecraft?.snapshots ?? [])]) {

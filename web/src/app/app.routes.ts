@@ -12,6 +12,7 @@ import { AdminServer } from './admin-server';
 import { AdminMods } from './admin-mods';
 import { AdminModpack } from './admin-modpack';
 import { ModpackPage } from './modpack';
+import { Dashboard } from './dashboard';
 import { adminGuard, guestGuard, loggedInGuard, memberGuard } from './auth';
 
 export const routes: Routes = [
@@ -28,7 +29,8 @@ export const routes: Routes = [
     path: '',
     canActivateChild: [memberGuard],
     children: [
-      { path: '', component: ProjectList, title: 'Bauprojekte · Neo' },
+      { path: '', component: Dashboard, title: 'Dashboard · Neo' },
+      { path: 'projekte', component: ProjectList, title: 'Bauprojekte · Neo' },
       { path: 'projekte/:id', component: ProjectDetail, title: 'Materialliste · Neo' },
       { path: 'lager', component: StorageList, title: 'Lager · Neo' },
       { path: 'lager/:id', component: StorageDetail, title: 'Lager · Neo' },
