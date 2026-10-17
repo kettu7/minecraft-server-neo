@@ -70,6 +70,21 @@ async function whitelistState() {
   return { enabled, names };
 }
 
+/** Kurzstatus für die Kopfzeile aller Mitglieder: Zustand und Spielerzahl, 10 s zwischengespeichert */
+export interface LiveStatus { state: 'online' | 'starting' | 'offline'; online: number; max: number }
+let live: { at: number; value: Promise<LiveStatus> } | null = null;
+export function liveStatus(): Promise<LiveStatus> {
+  if (live && Date.now() - live.at < 10_000) return live.value;
+  const value = (async (): Promise<LiveStatus> => {
+    const players = await rcon('list').then(([a]) => parsePlayerList(a)).catch(() => null);
+    if (players) return { state: 'online', online: players.online, max: players.max };
+    const c = CONTROL_URL ? ((await control('GET', '/status', 5_000).catch(() => null)) as { running?: boolean } | null) : null;
+    return { state: c?.running ? 'starting' : 'offline', online: 0, max: 0 };
+  })();
+  live = { at: Date.now(), value };
+  return value;
+}
+
 /** Minecraft-Name → Anzeigename des Website-Kontos (für die Online-Liste) */
 function accountsFor(names: string[]) {
   const accounts: Record<string, string> = {};

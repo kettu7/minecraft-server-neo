@@ -4,7 +4,7 @@ import { Status, StoragesService } from './projects.service';
 import { AuthService } from './auth';
 import { isDemo } from './demo';
 
-const STATUS_POLL_MS = 30_000;
+const STATUS_POLL_MS = 15_000;
 
 @Component({
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
@@ -42,16 +42,14 @@ const STATUS_POLL_MS = 30_000;
       }
       @if (auth.isMember()) {
         @if (status(); as s) {
-          <span class="sync" [title]="s.lastRun?.error ?? ''">
-            <span class="dot" [class.busy]="s.running" [class.err]="!!s.lastRun?.error"></span>
-            @if (s.running) {
-              Aktualisiere …
-            } @else if (s.lastRun?.error) {
-              Server nicht erreichbar
-            } @else if (s.lastRun) {
-              Sync {{ time(s.lastRun.startedAt) }}<span class="sep" aria-hidden="true"></span>alle {{ s.intervalMinutes }} Min.
-            } @else {
-              Sync alle {{ s.intervalMinutes }} Min.
+          <span class="server-status" [attr.data-state]="s.server.state" [title]="syncHint(s)">
+            <span class="dot"></span>
+            @switch (s.server.state) {
+              @case ('online') {
+                Online<span class="sep" aria-hidden="true"></span>{{ s.server.online }} Spieler
+              }
+              @case ('starting') { Server startet … }
+              @default { Server offline }
             }
           </span>
         }
@@ -80,7 +78,7 @@ export class App {
   private timer?: ReturnType<typeof setInterval>;
 
   constructor() {
-    // Sync-Status nur für freigeschaltete Mitglieder abfragen
+    // Server-Status nur für freigeschaltete Mitglieder abfragen
     effect(() => {
       clearInterval(this.timer);
       if (!this.auth.isMember()) return;
@@ -88,6 +86,14 @@ export class App {
       load();
       this.timer = setInterval(load, STATUS_POLL_MS);
     });
+  }
+
+  /** Tooltip: Stand der Lager-/Projekt-Aktualisierung */
+  protected syncHint(s: Status) {
+    if (s.running) return 'Lager und Projekte werden gerade aktualisiert';
+    if (s.lastRun?.error) return `Aktualisierung fehlgeschlagen: ${s.lastRun.error}`;
+    const last = s.lastRun ? `zuletzt ${this.time(s.lastRun.startedAt)}, ` : '';
+    return `Lager und Projekte: ${last}alle ${s.intervalMinutes} Min.`;
   }
 
   protected time(iso: string) {

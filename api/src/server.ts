@@ -8,7 +8,7 @@ import { parseLitematic } from './litematic.ts';
 import { DIMENSIONS, MIRRORS, ROTATIONS, type Placement } from './progress.ts';
 import { MAX_HEIGHT, MAX_RADIUS, MAX_SCAN_POSITIONS, scanVolume } from './storage.ts';
 import { registerAuth, requireAdmin } from './auth.ts';
-import { registerServerAdmin } from './server-admin.ts';
+import { liveStatus, registerServerAdmin } from './server-admin.ts';
 import { registerAutoRestart } from './auto-restart.ts';
 import { registerProjectImages, removeProjectImages } from './project-images.ts';
 import { registerMods } from './mods.ts';
@@ -246,7 +246,7 @@ app.get<{ Params: { id: string } }>('/api/backups/:id/download', async (req, rep
 
 /* ───────────────────────── Aktualisierung ───────────────────────── */
 
-app.get('/api/status', async () => refreshStatus());
+app.get('/api/status', async () => ({ ...refreshStatus(), server: await liveStatus() }));
 
 app.post('/api/refresh', async (req, reply) => {
   const report = await refresh({ storageIds: allStorageIds(), projectIds: projectIdsWithPlacement() }, 'manual', req.log);

@@ -18,7 +18,7 @@ export interface ServerInfo {
   address: { host: string; ip: string | null };
 }
 
-export interface AutoRestart { enabled: boolean; hours: number; nextAt: string | null }
+export interface AutoRestart { enabled: boolean; time: string; nextAt: string | null }
 
 @Injectable({ providedIn: 'root' })
 export class ServerService {
@@ -106,6 +106,15 @@ const POLL_MS = 5_000;
       </section>
 
       <section class="card">
+        <h3>Admin-Chat</h3>
+        <p class="hint small-text">Erscheint im Spiel-Chat als <span class="ok">[Neo]</span>.</p>
+        <form class="chat-form" (submit)="say($event, msg)">
+          <input #msg type="text" maxlength="200" placeholder="Text eingeben …" aria-label="Nachricht" />
+          <button type="submit" [disabled]="busy()">Senden</button>
+        </form>
+      </section>
+
+      <section class="card">
         <div class="project-head">
           <h3>Spieler online</h3>
           <span class="hint">{{ i.players?.online ?? 0 }} Spieler</span>
@@ -134,15 +143,6 @@ const POLL_MS = 5_000;
             }
           </ul>
         }
-      </section>
-
-      <section class="card">
-        <h3>Admin-Chat</h3>
-        <p class="hint small-text">Erscheint im Spiel-Chat als <span class="ok">[Neo]</span>.</p>
-        <form class="chat-form" (submit)="say($event, msg)">
-          <input #msg type="text" maxlength="200" placeholder="Text eingeben …" aria-label="Nachricht" />
-          <button type="submit" [disabled]="busy()">Senden</button>
-        </form>
       </section>
 
       <section class="card settings">
@@ -178,10 +178,10 @@ const POLL_MS = 5_000;
               </span>
             </label>
             <label class="setting-field" [class.off]="!a.enabled">
-              <span>Nach</span>
-              <input type="number" min="1" max="168" step="1" [value]="a.hours" [disabled]="busy() || !a.enabled"
-                     (change)="saveAutoRestart({ hours: +$any($event.target).value })" aria-label="Stunden bis zum Neustart" />
-              <span>Stunden</span>
+              <span>Täglich um</span>
+              <input type="time" [value]="a.time" [disabled]="busy() || !a.enabled" required
+                     (blur)="saveTime(a, $any($event.target).value)" (keydown.enter)="saveTime(a, $any($event.target).value)" aria-label="Uhrzeit des Neustarts" />
+              <span>Uhr</span>
             </label>
           </div>
         }
@@ -257,14 +257,21 @@ export class AdminServer {
 
   saveAutoRestart(change: Partial<AutoRestart>) {
     const next = { ...this.autoRestart()!, ...change };
-    const msg = next.enabled ? `Geplanter Neustart: alle ${next.hours} Stunden.` : 'Geplanter Neustart ist aus.';
-    this.run(async () => this.autoRestart.set(await this.api.setAutoRestart({ enabled: next.enabled, hours: next.hours })), msg);
+    const msg = next.enabled ? `Geplanter Neustart: täglich um ${next.time} Uhr.` : 'Geplanter Neustart ist aus.';
+    this.run(async () => this.autoRestart.set(await this.api.setAutoRestart({ enabled: next.enabled, time: next.time })), msg);
+  }
+
+  /** Uhrzeit erst beim Verlassen/Enter speichern – sonst würde jeder Pfeiltastendruck gespeichert */
+  saveTime(a: AutoRestart, time: string) {
+    if (time && time !== a.time) this.saveAutoRestart({ time });
   }
 
   protected when(iso: string) {
     const d = new Date(iso);
     const today = new Date().toDateString() === d.toDateString();
     const time = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    const tomorrow = new Date(Date.now() + 86_400_000).toDateString() === d.toDateString();
+    if (tomorrow) return `morgen ${time} Uhr`;
     return today ? `heute ${time} Uhr` : `${d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })}, ${time} Uhr`;
   }
 

@@ -152,7 +152,7 @@ kbd {
 }
 
 /* Formularfelder */
-input[type=text], input[type=number], input[type=search], input[type=file], select {
+input[type=text], input[type=number], input[type=time], input[type=search], input[type=file], select {
   font: inherit; color: inherit; width: 100%;
   background: rgba(0, 0, 0, 0.28);
   border: 1px solid var(--glass-border);
@@ -249,13 +249,15 @@ button.secondary:hover:not(:disabled) { background: var(--accent-soft); border-c
 .topbar nav a:hover { color: var(--text); background: var(--glass); }
 .topbar nav a.active { color: var(--text); background: var(--glass-strong); box-shadow: inset 0 1px 0 var(--glass-highlight); }
 
-.sync {
+/* Server-Status in der Kopfzeile: Punkt + Zustand + Spielerzahl */
+.server-status {
   display: inline-flex; align-items: center; gap: .5rem;
-  font-size: .8rem; color: var(--muted); white-space: nowrap;
+  font-size: .8rem; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums;
 }
-.sync .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
-.sync .dot.busy { animation: pulse 1s ease-in-out infinite; }
-.sync .dot.err { background: var(--danger); box-shadow: 0 0 10px rgba(255, 107, 107, .5); }
+.server-status .sep { margin: 0 .2em; }
+.server-status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
+.server-status[data-state="starting"] .dot { background: var(--warn); box-shadow: 0 0 10px rgba(246, 195, 91, .5); animation: pulse 1s ease-in-out infinite; }
+.server-status[data-state="offline"] .dot { background: var(--danger); box-shadow: 0 0 10px rgba(255, 107, 107, .5); }
 @keyframes pulse { 50% { opacity: .35; } }
 
 main { max-width: 1040px; margin: 0 auto; padding: 2.5rem 1rem 5rem; }
@@ -289,7 +291,6 @@ main > :not(router-outlet) > p { margin: 0; }
   .topbar nav { order: 3; width: 100%; overflow-x: auto; scrollbar-width: none; }
   .topbar nav::-webkit-scrollbar { display: none; }
   .topbar nav a { flex-shrink: 0; }
-  .sync { display: none; }
   .user-chip span:not(.avatar) { display: none; }
 }
 
@@ -1414,7 +1415,7 @@ details.card > app-backups-panel { display: grid; gap: 1rem; }
 .setting label.switch-row { display: flex; align-items: center; gap: 1rem; cursor: pointer; flex: 1 1 16rem; min-width: 0; }
 .setting-field { display: inline-flex; align-items: center; gap: .55rem; font-size: .85rem; color: var(--muted); transition: opacity .15s; }
 .setting-field.off { opacity: .5; }
-.setting-field input[type=number] { width: 4.75rem; height: 2.5rem; text-align: center; padding: 0 .4rem; font-variant-numeric: tabular-nums; }
+.setting-field input[type=time] { width: 6.25rem; height: 2.5rem; padding: 0 .6rem; color-scheme: dark; font-variant-numeric: tabular-nums; }
 
 /* Backups-Tabelle (im Akkordeon, daher ohne eigenes Glas) */
 .mat-panel.flat { background: rgba(0, 0, 0, .14); backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; border-color: var(--line); }

@@ -116,6 +116,8 @@ export interface Status {
   intervalMinutes: number;
   running: boolean;
   lastRun: RefreshReport | null;
+  /** Minecraft-Server für die Kopfzeile */
+  server: { state: 'online' | 'starting' | 'offline'; online: number; max: number };
 }
 
 /** Beschriftungen wie in Litematica, damit man die Werte leicht wiederfindet */
