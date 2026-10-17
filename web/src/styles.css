@@ -1273,3 +1273,21 @@ details.card[open] summary::before { transform: rotate(180deg); }
 .switch-text { gap: .25rem; }
 .switch-text strong { font-size: .92rem; color: var(--text); }
 .switch-text .hint { font-size: .78rem; color: var(--faint); line-height: 1.4; }
+
+/* Formular-Fußzeile: Bereichsgröße direkt beim Button, vom Rest abgesetzt */
+.form-footer {
+  display: flex; justify-content: flex-end; align-items: center; gap: .75rem; flex-wrap: wrap;
+  margin-top: .35rem; padding-top: 1rem; border-top: 1px solid var(--line);
+}
+.scan-estimate {
+  display: inline-flex; align-items: center; gap: .45rem; height: var(--control-h); padding: 0 1rem;
+  border-radius: var(--radius-sm); font-size: .86rem; color: var(--muted); font-variant-numeric: tabular-nums;
+  background: rgba(95, 227, 92, .07); border: 1px solid rgba(95, 227, 92, .18);
+}
+.scan-estimate .icon { color: var(--accent); }
+.scan-estimate strong { color: var(--text); font-weight: 700; }
+.scan-estimate .sep { color: var(--faint); }
+.scan-estimate.too-big { color: #ffd3d3; background: var(--danger-soft); border-color: rgba(255, 107, 107, .3); }
+.scan-estimate.too-big .icon { color: var(--danger); }
+.form-footer button { min-width: 220px; }
+@media (max-width: 640px) { .form-footer > * { flex: 1 1 100%; justify-content: center; } }

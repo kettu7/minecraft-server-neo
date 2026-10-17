@@ -1,12 +1,13 @@
 import { Component, computed, input, output, signal } from '@angular/core';
 import { DecimalPipe, KeyValuePipe } from '@angular/common';
 import { DIMENSION_LABELS, Dimension, StorageInput } from './projects.service';
+import { Icon } from './icon';
 
 const MAX_POSITIONS = 20_000;
 
 @Component({
   selector: 'app-storage-form',
-  imports: [DecimalPipe, KeyValuePipe],
+  imports: [DecimalPipe, KeyValuePipe, Icon],
   template: `
     <form class="storage-form" (submit)="submit($event, form)" (input)="recalc(form)" #form>
       <label class="wide">Name <input name="name" type="text" required maxlength="60" placeholder="z. B. Hauptlager" [value]="initial()?.name ?? ''" /></label>
@@ -29,13 +30,20 @@ const MAX_POSITIONS = 20_000;
         </span>
         <span class="switch-text">
           <strong>Shulkerkisten einrechnen</strong>
-          <span class="hint">Abgestellt und in Kisten. Aus, z. B. für ein privates Shulker-Lager.</span>
+          <span class="hint">Abgestellt und in Kisten.</span>
         </span>
       </label>
-      <div class="wide actions">
-        <span class="scan-estimate" [class.error]="positions() > max">
-          <strong>{{ positions() | number }}</strong> Positionen · Scan ca. {{ seconds() }} s
-          @if (positions() > max) { – zu groß (max. {{ max | number }}) }
+      <div class="wide form-footer">
+        <span class="scan-estimate" [class.too-big]="positions() > max"
+              [title]="(positions() | number) + ' Blöcke werden nach Behältern abgesucht'">
+          <app-icon name="box" [size]="15" />
+          <span>Bereich <strong>{{ side() }} × {{ side() }} × {{ tall() }}</strong> Blöcke</span>
+          <span class="sep">·</span>
+          @if (positions() > max) {
+            <span>zu groß – Radius oder Höhe verkleinern</span>
+          } @else {
+            <span>Scan ca. {{ seconds() }} s</span>
+          }
         </span>
         <button type="submit" [disabled]="busy() || positions() > max">{{ busy() ? 'Scanne …' : submitLabel() }}</button>
       </div>
@@ -53,7 +61,10 @@ export class StorageForm {
   keep = () => 0;
 
   private size = signal({ radius: 8, height: 3 });
-  positions = computed(() => (2 * this.size().radius + 1) ** 2 * (2 * this.size().height + 1));
+  /** Kantenlänge (X/Z) und Höhe des Bereichs in Blöcken */
+  side = computed(() => 2 * this.size().radius + 1);
+  tall = computed(() => 2 * this.size().height + 1);
+  positions = computed(() => this.side() ** 2 * this.tall());
   /** Gemessen: etwa 1 ms pro Position */
   seconds = computed(() => Math.max(1, Math.round(this.positions() / 1000)));
 
