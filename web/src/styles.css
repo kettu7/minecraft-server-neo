@@ -1220,3 +1220,46 @@ details.card[open] summary::before { transform: rotate(180deg); }
 
 /* Status-Felder immer gleich breit */
 .status-tag { box-sizing: border-box; min-width: 9.25rem; }
+
+/* ───────────────────────── Lager ───────────────────────── */
+
+/* Formular: Schalter-Zeile und Abschluss */
+.storage-form label.switch-row { display: flex; align-items: center; gap: .85rem; cursor: pointer; color: var(--text); font-weight: 400; }
+.switch-row .switch { flex-shrink: 0; }
+.switch-text { display: grid; gap: .1rem; }
+.switch-text strong { font-size: .9rem; font-weight: 600; }
+.switch-text .hint { margin: 0; font-size: .8rem; }
+.storage-form .actions { padding-top: .35rem; }
+.scan-estimate { font-size: .84rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.scan-estimate strong { color: var(--text); }
+.storage-form .actions button { min-width: 220px; }
+
+/* Lager-Kacheln */
+.storage-tile { display: grid; gap: 1rem; height: 100%; text-decoration: none; transition: transform .18s, border-color .18s, box-shadow .18s; }
+.storage-tile:hover { transform: translateY(-2px); border-color: rgba(95, 227, 92, .3); box-shadow: inset 0 1px 0 var(--glass-highlight), 0 22px 44px -22px rgba(0, 0, 0, .9); }
+.storage-tile-head { display: grid; grid-template-columns: auto 1fr auto; gap: .85rem; align-items: center; }
+.storage-tile-icon .item-icon { padding: 6px; border-radius: 12px; }
+.storage-tile-title { display: grid; gap: .2rem; min-width: 0; }
+.storage-tile-title strong { font: 700 1.1rem/1.2 var(--font-display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.storage-tile-sub { display: flex; align-items: center; gap: .35rem; font-size: .8rem; color: var(--muted); white-space: nowrap; overflow: hidden; }
+.storage-tile-sub .mono { font-size: .78rem; color: var(--text); opacity: .85; }
+.storage-tile-sub .sep { color: var(--faint); }
+.tile-arrow { color: var(--faint); transition: transform .18s, color .18s; }
+.storage-tile:hover .tile-arrow { color: var(--accent); transform: translateX(3px); }
+
+/* Kennzahlen in drei gleichen Spalten */
+.tile-stats {
+  display: grid; grid-template-columns: repeat(3, 1fr); margin: 0; border-radius: var(--radius-sm); overflow: hidden;
+  background: rgba(0, 0, 0, .22); border: 1px solid var(--line);
+}
+.tile-stats > div { padding: .65rem .8rem; display: grid; gap: .15rem; }
+.tile-stats > div + div { border-left: 1px solid var(--line); }
+.tile-stats dt { font: 600 .66rem/1 var(--font-body); letter-spacing: .1em; text-transform: uppercase; color: var(--faint); }
+.tile-stats dd { margin: 0; font: 800 1.2rem/1.1 var(--font-display); font-variant-numeric: tabular-nums; }
+
+.storage-tile .tile-chips { margin-top: -.25rem; }
+.chip-item .item-icon { padding: 0; background: none; border: 0; box-shadow: none; }
+.chip-item .item-icon img { filter: none; }
+.tile-foot { display: flex; align-items: center; gap: .4rem; margin: -.25rem 0 0; font-size: .8rem; color: var(--muted); }
+.tile-foot .icon { color: var(--built); }
+.storage-tile .error { margin: 0; }

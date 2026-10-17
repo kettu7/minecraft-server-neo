@@ -22,13 +22,19 @@ const MAX_POSITIONS = 20_000;
           }
         </select>
       </label>
-      <label class="wide check">
-        <input name="includeShulkers" type="checkbox" [checked]="initial()?.includeShulkers ?? true" />
-        Shulkerkisten einrechnen (abgestellt und in Kisten). Aus = z. B. privates Shulker-Lager.
+      <label class="wide switch-row">
+        <span class="switch">
+          <input name="includeShulkers" type="checkbox" [checked]="initial()?.includeShulkers ?? true" />
+          <span></span>
+        </span>
+        <span class="switch-text">
+          <strong>Shulkerkisten einrechnen</strong>
+          <span class="hint">Abgestellt und in Kisten. Aus, z. B. für ein privates Shulker-Lager.</span>
+        </span>
       </label>
       <div class="wide actions">
-        <span class="hint" [class.error]="positions() > max">
-          {{ positions() | number }} Positionen · Scan ca. {{ seconds() }} s
+        <span class="scan-estimate" [class.error]="positions() > max">
+          <strong>{{ positions() | number }}</strong> Positionen · Scan ca. {{ seconds() }} s
           @if (positions() > max) { – zu groß (max. {{ max | number }}) }
         </span>
         <button type="submit" [disabled]="busy() || positions() > max">{{ busy() ? 'Scanne …' : submitLabel() }}</button>

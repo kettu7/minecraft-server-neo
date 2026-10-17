@@ -2,11 +2,20 @@ import { Component, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { DecimalPipe } from '@angular/common';
 import { StorageForm } from './storage-form';
-import { StorageInput, StorageSummary, StoragesService, errorMessage, formatDate, reportErrors } from './projects.service';
+import { ItemIcon } from './items';
+import { Icon } from './icon';
+import { DIMENSION_LABELS, StorageInput, StorageSummary, StoragesService, errorMessage, reportErrors } from './projects.service';
+
+/** Behälter-Arten aus dem Scan → Anzeige (Doppelkisten zählen als zwei Kisten) */
+const CONTAINER_GROUPS = [
+  { key: 'chest', types: ['chest', 'trapped_chest'], icon: 'chest', one: 'Kiste', many: 'Kisten' },
+  { key: 'barrel', types: ['barrel'], icon: 'barrel', one: 'Fass', many: 'Fässer' },
+  { key: 'shulker', types: ['shulker_box'], icon: 'shulker_box', one: 'Shulker', many: 'Shulker' },
+];
 
 @Component({
   selector: 'app-storage-list',
-  imports: [RouterLink, DecimalPipe, StorageForm],
+  imports: [RouterLink, DecimalPipe, StorageForm, ItemIcon, Icon],
   template: `
     <header class="page-head">
       <span class="eyebrow">Gespiegelt aus der Welt</span>
@@ -14,27 +23,73 @@ import { StorageInput, StorageSummary, StoragesService, errorMessage, formatDate
       <p class="hint">Kisten, Fässer und Shulker aus der Welt.</p>
     </header>
 
+    <!-- Neues Lager: erst nur der Button, ein Klick klappt das Formular auf -->
+    <div class="create-panel" [class.open]="createOpen()">
+      <button type="button" class="wide-button with-icon" (click)="createOpen.set(true)" [attr.aria-expanded]="createOpen()"
+              [attr.tabindex]="createOpen() ? -1 : null">
+        <app-icon name="plus" [size]="18" [stroke]="2.5" />Neues Lager anlegen
+      </button>
+      <div class="create-reveal" [attr.inert]="createOpen() ? null : ''">
+        <div class="create-inner">
+          <section class="card create-card">
+            <header class="create-head">
+              <h2>Neues Lager</h2>
+              <button type="button" class="icon-btn" (click)="closeCreate()" title="Schließen" aria-label="Schließen">
+                <app-icon name="x" [size]="18" />
+              </button>
+            </header>
+            <p class="hint">Mittelpunkt und Radius des Bereichs festlegen – die Koordinaten siehst du im Spiel mit <kbd>F3</kbd>.</p>
+            <app-storage-form submitLabel="Anlegen & scannen" [busy]="busy()" (saved)="create($event)" />
+            @if (error()) {
+              <p class="error">{{ error() }}</p>
+            }
+          </section>
+        </div>
+      </div>
+    </div>
+
     <section>
       @if (loading()) {
         <p class="hint">Lade …</p>
       } @else if (!storages().length) {
-        <p class="hint">Noch keine Lager angelegt – unten kannst du das erste anlegen.</p>
+        <p class="hint">Noch keine Lager.</p>
       } @else {
-        <ul class="projects">
+        <ul class="projects storage-tiles">
           @for (s of storages(); track s.id) {
             <li>
-              <a class="card project" [routerLink]="['/lager', s.id]">
-                <div class="project-head">
-                  <strong>{{ s.name }}</strong>
-                  <span class="badge">{{ s.containerCount }} Behälter</span>
+              <a class="card storage-tile" [routerLink]="['/lager', s.id]">
+                <div class="storage-tile-head">
+                  <span class="storage-tile-icon"><app-item-icon item="chest" [size]="30" /></span>
+                  <div class="storage-tile-title">
+                    <strong>{{ s.name }}</strong>
+                    <span class="storage-tile-sub">
+                      <app-icon name="map-pin" [size]="13" />
+                      <span class="mono">{{ s.x }} / {{ s.y }} / {{ s.z }}</span>
+                      @if (s.dimension !== 'minecraft:overworld') { <span class="sep">·</span>{{ dimensions[s.dimension] }} }
+                    </span>
+                  </div>
+                  <app-icon class="tile-arrow" name="arrow-right" [size]="18" />
                 </div>
-                <p class="hint mono">{{ s.x }} / {{ s.y }} / {{ s.z }} · r {{ s.radius }} · ±{{ s.height }}</p>
-                <small class="hint">
-                  {{ s.itemCount | number }} Items · {{ s.itemTypes }} Sorten
-                  @if (s.scannedAt) { · {{ date(s.scannedAt) }} }
-                </small>
+
+                <dl class="tile-stats">
+                  <div><dt>Items</dt><dd>{{ s.itemCount | number }}</dd></div>
+                  <div><dt>Sorten</dt><dd>{{ s.itemTypes | number }}</dd></div>
+                  <div><dt>Behälter</dt><dd>{{ s.containerCount | number }}</dd></div>
+                </dl>
+
+                @if (groups(s).length) {
+                  <div class="tile-chips">
+                    @for (g of groups(s); track g.key) {
+                      <span class="chip-gray chip-item"><app-item-icon [item]="g.icon" [size]="16" />{{ g.n }} {{ g.n === 1 ? g.one : g.many }}</span>
+                    }
+                  </div>
+                }
+
+                @if (s.projects.length) {
+                  <p class="tile-foot"><app-icon name="hammer" [size]="13" />Für {{ projectNames(s) }}</p>
+                }
                 @if (s.lastError) {
-                  <p class="error small">{{ s.lastError }}</p>
+                  <p class="error small with-icon"><app-icon name="alert-triangle" [size]="14" />{{ s.lastError }}</p>
                 }
               </a>
             </li>
@@ -42,19 +97,8 @@ import { StorageInput, StorageSummary, StoragesService, errorMessage, formatDate
         </ul>
       }
     </section>
-
-    <section class="card">
-      <span class="eyebrow">Neu</span>
-      <h2>Lager anlegen</h2>
-      <p class="hint">
-        Mittelpunkt und Radius festlegen. Koordinaten siehst du im Spiel mit <kbd>F3</kbd>.
-      </p>
-      <app-storage-form submitLabel="Anlegen & scannen" [busy]="busy()" (saved)="create($event)" />
-      @if (error()) {
-        <p class="error">{{ error() }}</p>
-      }
-    </section>
   `,
+  host: { '(document:keydown.escape)': 'closeCreate()' },
 })
 export class StorageList {
   private api = inject(StoragesService);
@@ -64,13 +108,31 @@ export class StorageList {
   loading = signal(true);
   busy = signal(false);
   error = signal('');
-  date = formatDate;
+  createOpen = signal(false);
+  readonly dimensions = DIMENSION_LABELS;
 
   constructor() {
     this.api.list()
       .then((s) => this.storages.set(s))
       .catch((err) => this.error.set(errorMessage(err)))
       .finally(() => this.loading.set(false));
+  }
+
+  closeCreate() {
+    if (this.busy()) return;
+    this.createOpen.set(false);
+    this.error.set('');
+  }
+
+  /** Behälter nach Art zusammengefasst, z. B. 3 Kisten · 1 Fass */
+  groups(s: StorageSummary) {
+    return CONTAINER_GROUPS
+      .map((g) => ({ ...g, n: s.containers.filter((c) => g.types.includes(c.type)).reduce((a, c) => a + c.n, 0) }))
+      .filter((g) => g.n > 0);
+  }
+
+  projectNames(s: StorageSummary) {
+    return s.projects.map((p) => p.name).join(', ');
   }
 
   async create(input: StorageInput) {
