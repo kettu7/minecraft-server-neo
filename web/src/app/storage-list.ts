@@ -4,14 +4,7 @@ import { DecimalPipe } from '@angular/common';
 import { StorageForm } from './storage-form';
 import { ItemIcon } from './items';
 import { Icon } from './icon';
-import { DIMENSION_LABELS, StorageInput, StorageSummary, StoragesService, errorMessage, reportErrors } from './projects.service';
-
-/** Behälter-Arten aus dem Scan → Anzeige (Doppelkisten zählen als zwei Kisten) */
-const CONTAINER_GROUPS = [
-  { key: 'chest', types: ['chest', 'trapped_chest'], icon: 'chest', one: 'Kiste', many: 'Kisten' },
-  { key: 'barrel', types: ['barrel'], icon: 'barrel', one: 'Fass', many: 'Fässer' },
-  { key: 'shulker', types: ['shulker_box'], icon: 'shulker_box', one: 'Shulker', many: 'Shulker' },
-];
+import { DIMENSION_LABELS, StorageInput, StorageSummary, StoragesService, containerGroups, errorMessage, reportErrors } from './projects.service';
 
 @Component({
   selector: 'app-storage-list',
@@ -124,12 +117,7 @@ export class StorageList {
     this.error.set('');
   }
 
-  /** Behälter nach Art zusammengefasst, z. B. 3 Kisten · 1 Fass */
-  groups(s: StorageSummary) {
-    return CONTAINER_GROUPS
-      .map((g) => ({ ...g, n: s.containers.filter((c) => g.types.includes(c.type)).reduce((a, c) => a + c.n, 0) }))
-      .filter((g) => g.n > 0);
-  }
+  groups = (s: StorageSummary) => containerGroups(s.containers);
 
   projectNames(s: StorageSummary) {
     return s.projects.map((p) => p.name).join(', ');

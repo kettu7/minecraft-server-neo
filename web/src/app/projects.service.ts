@@ -273,3 +273,17 @@ export async function resizeImage(file: Blob, maxSize: number, quality: number):
 export function imageFromTransfer(data: DataTransfer | null): File | undefined {
   return [...(data?.files ?? [])].find((f) => f.type.startsWith('image/'));
 }
+
+/** Behälter-Arten aus dem Scan → Anzeige (Doppelkisten zählen als zwei Kisten) */
+export const CONTAINER_GROUPS = [
+  { key: 'chest', types: ['chest', 'trapped_chest'], icon: 'chest', one: 'Kiste', many: 'Kisten' },
+  { key: 'barrel', types: ['barrel'], icon: 'barrel', one: 'Fass', many: 'Fässer' },
+  { key: 'shulker', types: ['shulker_box'], icon: 'shulker_box', one: 'Shulker', many: 'Shulker' },
+];
+
+/** Behälter nach Art zusammengefasst, z. B. 3 Kisten, 1 Fass */
+export function containerGroups(containers: Array<{ type: string; n: number }>) {
+  return CONTAINER_GROUPS
+    .map((g) => ({ ...g, n: containers.filter((c) => g.types.includes(c.type)).reduce((a, c) => a + c.n, 0) }))
+    .filter((g) => g.n > 0);
+}

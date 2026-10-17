@@ -34,6 +34,8 @@ const MAX_POSITIONS = 20_000;
         </span>
       </label>
       <div class="wide form-footer">
+        <!-- Optional: zusätzliche Aktion links in der Fußzeile, z. B. Löschen -->
+        <ng-content select="[formExtra]" />
         <span class="scan-estimate" [class.too-big]="positions() > max"
               [title]="(positions() | number) + ' Blöcke werden nach Behältern abgesucht'">
           <app-icon name="box" [size]="15" />

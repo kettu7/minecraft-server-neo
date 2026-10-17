@@ -1298,3 +1298,48 @@ details.card[open] summary::before { transform: rotate(180deg); }
   margin: 0 .55em; vertical-align: middle; background: currentColor; opacity: .4;
 }
 :is(.storage-tile-sub, .scan-estimate, .mod-deps) .sep { margin: 0 .2em; }
+
+/* ───────────────────────── Lager-Detailseite ───────────────────────── */
+
+.detail-head .head-actions > * { height: 44px; }
+.create-reveal.open { grid-template-rows: 1fr; opacity: 1; }
+.create-reveal.open .create-card { animation: card-in .35s cubic-bezier(.2, .8, .2, 1); }
+.form-footer > [formExtra] { margin-right: auto; }
+
+.storage-overview { display: grid; gap: 1rem; }
+.storage-overview .tile-chips { margin-top: 0; }
+.tile-stats.big > div { padding: .9rem 1.1rem; gap: .3rem; }
+.tile-stats.big dd { font-size: 1.75rem; }
+
+/* „Versorgt“: verknüpfte Bauprojekte als Link-Chips */
+.supply {
+  display: flex; align-items: center; gap: .5rem .9rem; flex-wrap: wrap; padding: .7rem .85rem; border-radius: var(--radius-sm);
+  background: rgba(90, 169, 255, .06); border: 1px solid rgba(90, 169, 255, .16);
+}
+.supply-label {
+  display: inline-flex; align-items: center; gap: .4rem; color: var(--built);
+  font: 700 .68rem/1 var(--font-body); letter-spacing: .1em; text-transform: uppercase;
+}
+.supply-links { display: flex; flex-wrap: wrap; gap: .4rem; }
+.supply-link {
+  display: inline-flex; align-items: center; gap: .35rem; padding: .42rem .75rem; border-radius: 99px; text-decoration: none;
+  font: 600 .85rem/1 var(--font-body); color: #d6eaff; background: rgba(90, 169, 255, .14);
+  transition: background .15s, color .15s;
+}
+.supply-link .icon { opacity: .7; transition: transform .15s, opacity .15s; }
+.supply-link:hover { background: rgba(90, 169, 255, .24); color: #fff; }
+.supply-link:hover .icon { opacity: 1; transform: translateX(2px); }
+
+/* Letzter Scan: klein und dezent */
+.scan-meta { margin: 0; font-size: .78rem; color: var(--faint); font-variant-numeric: tabular-nums; }
+.storage-overview .error, .storage-overview .warn { margin: 0; }
+/* Kopf + Aufklapp-Bereich als Gruppe: Abstand nur, wenn der Bereich offen ist */
+.detail-top { display: grid; }
+.detail-top > .create-reveal { transition: grid-template-rows .35s cubic-bezier(.2, .8, .2, 1), opacity .25s ease, margin .35s cubic-bezier(.2, .8, .2, 1); }
+.detail-top > .create-reveal.open { margin-top: 1.5rem; }
+/* Auslöser-Button bei geöffnetem Bereich hervorheben */
+button.secondary[aria-expanded="true"] { background: var(--accent-soft); border-color: rgba(95, 227, 92, .4); }
+@media (max-width: 720px) {
+  .detail-head .head-actions { width: 100%; display: grid; grid-template-columns: 1fr; }
+  .detail-head .head-actions > * { justify-content: center; }
+}
