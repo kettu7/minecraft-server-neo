@@ -1,4 +1,4 @@
-import { Component, Injectable, inject, signal } from '@angular/core';
+import { Component, ElementRef, Injectable, computed, inject, signal, viewChild } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { DecimalPipe } from '@angular/common';
 import { firstValueFrom } from 'rxjs';
@@ -75,59 +75,95 @@ const POLL_MS = 15_000;
       }
     }
 
-    <div class="toolbar">
-      <span class="hint with-icon"><app-icon name="pin" [size]="14" />Angepinnte Backups werden nicht automatisch gelöscht.</span>
-      <button (click)="create()" [disabled]="busy() || status()?.running">{{ creating() ? 'Sichere …' : 'Jetzt sichern' }}</button>
+    @if (error()) { <p class="error">{{ error() }}</p> }
+    @if (notice()) { <p class="ok">{{ notice() }}</p> }
+
+    <section class="mat-panel flat">
+      <header class="mat-toolbar">
+        <div class="segmented" role="group" aria-label="Backups filtern">
+          @for (f of filters(); track f.key) {
+            <button type="button" [class.active]="filter() === f.key" [attr.aria-pressed]="filter() === f.key" (click)="filter.set(f.key)">
+              {{ f.label }} <span class="seg-count">{{ f.count }}</span>
+            </button>
+          }
+        </div>
+        <button type="button" class="compact with-icon" (click)="create()" [disabled]="busy() || status()?.running">
+          <app-icon name="plus" [size]="14" [stroke]="2.5" />{{ creating() ? 'Sichere …' : 'Jetzt sichern' }}
+        </button>
+      </header>
+
+      <div class="mat-scroll">
+        <table class="mat-table backup-table">
+          <thead>
+            <tr>
+              <th>Backup</th>
+              <th class="status-col">Art</th>
+              <th class="num">Größe</th>
+              <th class="num">Dauer</th>
+              <th class="actions-col"><span class="sr-only">Aktionen</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (b of visible(); track b.id) {
+              <tr [class.pinned]="b.pinned">
+                <td>
+                  <div class="item-text">
+                    <strong class="with-icon">
+                      {{ date(b.createdAt) }}
+                      @if (b.pinned) { <app-icon class="pin-mark" name="pinned-filled" [size]="14" label="angepinnt" /> }
+                    </strong>
+                    <span class="backup-sub">
+                      <span class="mono">{{ b.id }}</span>
+                      @if (b.by) { <span class="sep" aria-hidden="true"></span>{{ b.by }} }
+                    </span>
+                  </div>
+                </td>
+                <td class="status-col">
+                  <span class="pill" [attr.data-state]="b.kind === 'manual' ? 'covered' : b.kind === 'import' ? 'done' : 'off'"><i></i>{{ kindLabel(b) }}</span>
+                </td>
+                <td class="num">{{ size(b.totalBytes) }}</td>
+                <td class="num zero">{{ b.durationMs / 1000 | number: '1.1-1' }} s</td>
+                <td class="actions-col">
+                  <div class="row-actions">
+                    <a class="icon-btn" [href]="'/api/backups/' + b.id + '/download'" download title="Herunterladen" aria-label="Herunterladen">
+                      <app-icon name="download" [size]="16" />
+                    </a>
+                    <button type="button" class="icon-btn" (click)="openMenu(b, $event)" [disabled]="busy()"
+                            title="Weitere Aktionen" aria-label="Weitere Aktionen" aria-haspopup="menu"
+                            [attr.aria-expanded]="menuFor()?.id === b.id">
+                      <app-icon name="dots" [size]="16" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr class="empty"><td colspan="5">{{ backups().length ? 'Keine Backups in dieser Ansicht.' : 'Noch keine Backups.' }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <p class="hint small-text with-icon"><app-icon name="pin" [size]="14" />Angepinnte Backups werden nicht automatisch gelöscht.</p>
+
+    <!-- Aktionsmenü: liegt im Top-Layer, damit die Tabelle es nicht abschneidet -->
+    <div #menu popover class="row-menu" role="menu" [style.top.px]="menuPos().top" [style.left.px]="menuPos().left"
+         (toggle)="$any($event).newState === 'closed' && menuFor.set(undefined)">
+      @if (menuFor(); as b) {
+        <button type="button" role="menuitem" class="with-icon" (click)="togglePin(b)">
+          <app-icon [name]="b.pinned ? 'pinned-off' : 'pin'" [size]="16" />{{ b.pinned ? 'Pin lösen' : 'Anpinnen' }}
+        </button>
+        <button type="button" role="menuitem" class="with-icon" (click)="restore(b)">
+          <app-icon name="history" [size]="16" />Welt zurückspielen
+        </button>
+        <hr />
+        <button type="button" role="menuitem" class="with-icon danger-item" (click)="remove(b)">
+          <app-icon name="trash" [size]="16" />Löschen
+        </button>
+      }
     </div>
-
-    @if (error()) {
-      <p class="error">{{ error() }}</p>
-    }
-
-    <table class="materials">
-      <thead>
-        <tr><th>Zeitpunkt</th><th>Art</th><th class="num">Größe</th><th class="num">Dauer</th><th class="num">Aktionen</th></tr>
-      </thead>
-      <tbody>
-        @for (b of backups(); track b.id) {
-          <tr [class.covered]="b.pinned">
-            <td>
-              <strong>{{ date(b.createdAt) }}</strong>
-              @if (b.pinned) { <app-icon class="pin-mark" name="pinned-filled" [size]="14" label="angepinnt" /> }
-              <div class="hint mono">{{ b.id }}</div>
-            </td>
-            <td>
-              <span class="status" [class.ok]="b.kind === 'manual'" [class.done]="b.kind === 'auto'" [class.import]="b.kind === 'import'">
-                {{ b.kind === 'import' ? 'Umzugspaket' : b.kind === 'manual' ? 'manuell' : 'automatisch' }}
-              </span>
-              @if (b.by) { <div class="hint">von {{ b.by }}</div> }
-            </td>
-            <td class="num">{{ size(b.totalBytes) }}</td>
-            <td class="num hint">{{ b.durationMs / 1000 | number: '1.1-1' }} s</td>
-            <td class="num">
-              <div class="row-actions">
-                <a class="button-link" [href]="'/api/backups/' + b.id + '/download'" download>Download</a>
-                <button class="secondary compact" (click)="restore(b)" [disabled]="busy()" title="Welt auf diesen Stand zurücksetzen">Zurückspielen</button>
-                <button class="secondary compact" (click)="togglePin(b)" [disabled]="busy()">{{ b.pinned ? 'Lösen' : 'Anpinnen' }}</button>
-                <button class="danger compact" (click)="remove(b)" [disabled]="busy()">Löschen</button>
-              </div>
-            </td>
-          </tr>
-        } @empty {
-          <tr><td colspan="5" class="hint">Noch keine Backups.</td></tr>
-        }
-      </tbody>
-    </table>
-
-    @if (notice()) {
-      <p class="ok">{{ notice() }}</p>
-    }
-    <p class="hint">
-      <strong>Zurückspielen</strong> setzt nur die <em>Welt</em> zurück. Whitelist, OPs, Bans und die Website-Daten
-      (Projekte, Lager, Konten) bleiben auf dem aktuellen Stand. Vorher wird automatisch ein angepinntes
-      Sicherheits-Backup erstellt – das Zurückspielen lässt sich damit selbst wieder rückgängig machen.
-    </p>
   `,
+  // Menü hängt fest am Bildschirm – beim Scrollen schließen statt wegdriften
+  host: { "(window:scroll)": "menuFor() && closeMenu()" },
 })
 /** Backups – eingebettet als Akkordeon im Admin-Panel (Server) */
 export class BackupsPanel {
@@ -138,6 +174,23 @@ export class BackupsPanel {
   protected creating = signal(false);
   protected error = signal('');
   protected notice = signal('');
+  protected filter = signal<'all' | 'pinned' | 'auto' | 'manual'>('all');
+  protected filters = computed(() => {
+    const b = this.backups();
+    return [
+      { key: 'all' as const, label: 'Alle', count: b.length },
+      { key: 'pinned' as const, label: 'Angepinnt', count: b.filter((x) => x.pinned).length },
+      { key: 'auto' as const, label: 'Automatisch', count: b.filter((x) => x.kind === 'auto').length },
+      { key: 'manual' as const, label: 'Manuell', count: b.filter((x) => x.kind === 'manual').length },
+    ];
+  });
+  protected visible = computed(() => {
+    const f = this.filter();
+    return this.backups().filter((b) => f === 'all' || (f === 'pinned' ? b.pinned : b.kind === f));
+  });
+  protected menuFor = signal<Backup | undefined>(undefined);
+  protected menuPos = signal({ top: 0, left: 0 });
+  private menu = viewChild.required<ElementRef<HTMLElement>>('menu');
   private timer = setInterval(() => !this.busy() && this.load(), POLL_MS);
 
   constructor() {
@@ -169,6 +222,7 @@ export class BackupsPanel {
   }
 
   async restore(b: Backup) {
+    this.closeMenu();
     const when = this.date(b.createdAt);
     if (!confirm(`Welt auf den Stand vom ${when} zurücksetzen?
 
@@ -183,11 +237,33 @@ Vorher wird automatisch ein Sicherheits-Backup erstellt.`)) return;
     });
   }
 
+  protected kindLabel(b: Backup) {
+    return b.kind === 'import' ? 'Umzugspaket' : b.kind === 'manual' ? 'Manuell' : 'Automatisch';
+  }
+
+  /** Menü rechtsbündig unter dem Punkte-Button öffnen; bei Platzmangel darüber */
+  openMenu(b: Backup, event: MouseEvent) {
+    const el = this.menu().nativeElement;
+    if (this.menuFor()?.id === b.id) return el.hidePopover();
+    const r = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const width = 220, height = 150;
+    const top = r.bottom + 6 + height > innerHeight ? r.top - 6 - height : r.bottom + 6;
+    this.menuPos.set({ top, left: Math.max(8, r.right - width) });
+    this.menuFor.set(b);
+    el.showPopover();
+  }
+
+  protected closeMenu() {
+    this.menu().nativeElement.hidePopover();
+  }
+
   togglePin(b: Backup) {
+    this.closeMenu();
     this.run(() => this.api.pin(b.id, !b.pinned));
   }
 
   remove(b: Backup) {
+    this.closeMenu();
     if (!confirm(`Backup vom ${this.date(b.createdAt)} endgültig löschen?`)) return;
     this.run(() => this.api.delete(b.id));
   }

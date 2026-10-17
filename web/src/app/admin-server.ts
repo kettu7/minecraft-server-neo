@@ -18,6 +18,8 @@ export interface ServerInfo {
   address: { host: string; ip: string | null };
 }
 
+export interface AutoRestart { enabled: boolean; hours: number; nextAt: string | null }
+
 @Injectable({ providedIn: 'root' })
 export class ServerService {
   private http = inject(HttpClient);
@@ -27,6 +29,8 @@ export class ServerService {
   ban(name: string, reason: string) { return firstValueFrom(this.http.post('/api/server/ban', { name, reason })); }
   say(message: string) { return firstValueFrom(this.http.post('/api/server/say', { message })); }
   restart() { return firstValueFrom(this.http.post('/api/server/restart', {})); }
+  autoRestart() { return firstValueFrom(this.http.get<AutoRestart>('/api/server/auto-restart')); }
+  setAutoRestart(body: Partial<AutoRestart>) { return firstValueFrom(this.http.post<AutoRestart>('/api/server/auto-restart', body)); }
   stop() { return firstValueFrom(this.http.post('/api/server/stop', {})); }
   start() { return firstValueFrom(this.http.post('/api/server/start', {})); }
 }
@@ -143,17 +147,44 @@ const POLL_MS = 5_000;
 
       <section class="card settings">
         <h3>Einstellungen</h3>
-        <label class="switch-row setting">
-          <span class="switch">
-            <input type="checkbox" [checked]="i.whitelist.enabled" (change)="toggleWhitelist(!i.whitelist.enabled)"
-                   [disabled]="busy() || i.whitelist.enabled === null" />
-            <span></span>
-          </span>
-          <span class="switch-text">
-            <strong>Whitelist</strong>
-            <span class="hint">Nur freigeschaltete Spieler dürfen rein<span class="sep" aria-hidden="true"></span>{{ i.whitelist.names.length }} auf der Liste</span>
-          </span>
-        </label>
+        <div class="setting">
+          <label class="switch-row">
+            <span class="switch">
+              <input type="checkbox" [checked]="i.whitelist.enabled" (change)="toggleWhitelist(!i.whitelist.enabled)"
+                     [disabled]="busy() || i.whitelist.enabled === null" />
+              <span></span>
+            </span>
+            <span class="switch-text">
+              <strong>Whitelist</strong>
+              <span class="hint">Nur freigeschaltete Spieler dürfen rein<span class="sep" aria-hidden="true"></span>{{ i.whitelist.names.length }} auf der Liste</span>
+            </span>
+          </label>
+        </div>
+
+        @if (autoRestart(); as a) {
+          <div class="setting">
+            <label class="switch-row">
+              <span class="switch">
+                <input type="checkbox" [checked]="a.enabled" (change)="saveAutoRestart({ enabled: $any($event.target).checked })"
+                       [disabled]="busy() || !i.controlAvailable" />
+                <span></span>
+              </span>
+              <span class="switch-text">
+                <strong>Geplanter Neustart</strong>
+                <span class="hint">
+                  @if (a.enabled && a.nextAt) { Nächster {{ when(a.nextAt) }}<span class="sep" aria-hidden="true"></span> }
+                  Mit Backup, angekündigt 15, 5 und 1 Min. vorher
+                </span>
+              </span>
+            </label>
+            <label class="setting-field" [class.off]="!a.enabled">
+              <span>Nach</span>
+              <input type="number" min="1" max="168" step="1" [value]="a.hours" [disabled]="busy() || !a.enabled"
+                     (change)="saveAutoRestart({ hours: +$any($event.target).value })" aria-label="Stunden bis zum Neustart" />
+              <span>Stunden</span>
+            </label>
+          </div>
+        }
       </section>
 
       <details class="card" (toggle)="backupsOpen.set($any($event.target).open)">
@@ -172,6 +203,7 @@ export class AdminServer {
   /** laufende Server-Aktion für die Button-Beschriftung */
   protected action = signal<'' | 'restart' | 'stop' | 'start'>('');
   protected backupsOpen = signal(false);
+  protected autoRestart = signal<AutoRestart | undefined>(undefined);
   protected error = signal('');
   protected notice = signal('');
   protected copied = signal('');
@@ -209,7 +241,9 @@ export class AdminServer {
 
   private async load() {
     try {
-      this.info.set(await this.api.info());
+      const [info, autoRestart] = await Promise.all([this.api.info(), this.api.autoRestart()]);
+      this.info.set(info);
+      this.autoRestart.set(autoRestart);
     } catch (err) {
       this.error.set(errorMessage(err));
     }
@@ -219,6 +253,19 @@ export class AdminServer {
     const fields = [{ label: 'Adresse', value: i.address.host }];
     if (i.address.ip && i.address.ip !== i.address.host) fields.push({ label: 'IP', value: i.address.ip });
     return fields;
+  }
+
+  saveAutoRestart(change: Partial<AutoRestart>) {
+    const next = { ...this.autoRestart()!, ...change };
+    const msg = next.enabled ? `Geplanter Neustart: alle ${next.hours} Stunden.` : 'Geplanter Neustart ist aus.';
+    this.run(async () => this.autoRestart.set(await this.api.setAutoRestart({ enabled: next.enabled, hours: next.hours })), msg);
+  }
+
+  protected when(iso: string) {
+    const d = new Date(iso);
+    const today = new Date().toDateString() === d.toDateString();
+    const time = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    return today ? `heute ${time} Uhr` : `${d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })}, ${time} Uhr`;
   }
 
   async copy(text: string) {

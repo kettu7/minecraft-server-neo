@@ -9,6 +9,7 @@ import { DIMENSIONS, MIRRORS, ROTATIONS, type Placement } from './progress.ts';
 import { MAX_HEIGHT, MAX_RADIUS, MAX_SCAN_POSITIONS, scanVolume } from './storage.ts';
 import { registerAuth, requireAdmin } from './auth.ts';
 import { registerServerAdmin } from './server-admin.ts';
+import { registerAutoRestart } from './auto-restart.ts';
 import { registerProjectImages, removeProjectImages } from './project-images.ts';
 import { registerMods } from './mods.ts';
 import { registerModpack } from './modpack.ts';
@@ -31,6 +32,7 @@ await app.register(multipart, { limits: { fileSize: 20 * 1024 * 1024, files: 2 }
 // Anmeldung über Discord + Zugriffsprüfung für alle /api-Routen
 await registerAuth(app);
 await registerServerAdmin(app);
+await registerAutoRestart(app);
 await registerProjectImages(app);
 await registerMods(app);
 await registerModpack(app);

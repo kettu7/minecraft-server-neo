@@ -1388,13 +1388,8 @@ button.warning:hover:not(:disabled) { background: rgba(246, 195, 91, .12); borde
 .chat-form button { height: var(--control-h); }
 .card > h3 + .small-text { color: var(--faint); font-size: .8rem; margin-top: .3rem; }
 
-/* Einstellungen: Schalterzeilen als dezente Felder */
-.settings { display: grid; gap: .9rem; }
-label.switch-row.setting {
-  display: flex; align-items: center; gap: 1rem; cursor: pointer; padding: .8rem 1rem; border-radius: var(--radius-sm);
-  background: rgba(0, 0, 0, .2); border: 1px solid var(--line);
-}
-label.switch-row.setting:hover { border-color: rgba(255, 255, 255, .12); }
+.settings { display: grid; gap: .75rem; }
+.settings > h3 { margin-bottom: .15rem; }
 details.card > app-backups-panel { display: grid; gap: 1rem; }
 @media (max-width: 640px) {
   .server-panel .head-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
@@ -1408,3 +1403,48 @@ details.card > app-backups-panel { display: grid; gap: 1rem; }
   .subnav a { padding: .45rem .8rem; }
   .server-panel .head-actions > * { white-space: nowrap; padding-inline: .6rem; }
 }
+
+/* Einstellungen: eine Zeile pro Einstellung – Schalter + Text links, optionales Feld rechts */
+.setting {
+  display: flex; align-items: center; justify-content: space-between; gap: .75rem 1.25rem; flex-wrap: wrap;
+  padding: .8rem 1rem; border-radius: var(--radius-sm); background: rgba(0, 0, 0, .2); border: 1px solid var(--line);
+  transition: border-color .15s;
+}
+.setting:hover { border-color: rgba(255, 255, 255, .12); }
+.setting label.switch-row { display: flex; align-items: center; gap: 1rem; cursor: pointer; flex: 1 1 16rem; min-width: 0; }
+.setting-field { display: inline-flex; align-items: center; gap: .55rem; font-size: .85rem; color: var(--muted); transition: opacity .15s; }
+.setting-field.off { opacity: .5; }
+.setting-field input[type=number] { width: 4.75rem; height: 2.5rem; text-align: center; padding: 0 .4rem; font-variant-numeric: tabular-nums; }
+
+/* Backups-Tabelle (im Akkordeon, daher ohne eigenes Glas) */
+.mat-panel.flat { background: rgba(0, 0, 0, .14); backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; border-color: var(--line); }
+.backup-table { min-width: 620px; }
+.backup-table tr.pinned td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.backup-table .item-text strong { gap: .4rem; }
+.backup-sub { display: inline-flex; align-items: center; flex-wrap: wrap; font-size: .76rem; color: var(--faint); }
+.backup-sub .mono { font-size: .74rem; }
+.pin-mark { color: var(--accent); }
+a.icon-btn { display: inline-grid; place-items: center; text-decoration: none; }
+.actions-col .icon-btn { width: 2.25rem; height: 2.25rem; padding: 0; border-radius: 9px; }
+.icon-btn[aria-expanded=true] { color: var(--text); background: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .2); }
+details.card > app-backups-panel > .small-text { color: var(--faint); font-size: .8rem; margin: -.4rem 0 0; }
+
+/* Zeilen-Aktionsmenü (natives Popover im Top-Layer, Position per JS) */
+.row-menu {
+  position: fixed; inset: auto; margin: 0; width: 220px; padding: .35rem; color: var(--text);
+  border-radius: 12px; border: 1px solid var(--glass-border); background: rgba(14, 20, 36, .97);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 24px 48px -16px rgba(0, 0, 0, .9);
+}
+.row-menu:popover-open { display: grid; gap: 2px; animation: row-menu-in .16s cubic-bezier(.2, .8, .2, 1); }
+.row-menu button {
+  justify-content: flex-start; width: 100%; padding: .6rem .7rem; border-radius: 8px; gap: .65rem;
+  font: 500 .88rem/1.2 var(--font-body); letter-spacing: 0; text-transform: none; color: var(--text);
+  background: transparent; border: 0; box-shadow: none;
+}
+.row-menu button .icon { color: var(--muted); }
+.row-menu button:hover:not(:disabled), .row-menu button:focus-visible { background: rgba(255, 255, 255, .07); transform: none; filter: none; outline: none; }
+.row-menu button.danger-item, .row-menu button.danger-item .icon { color: var(--danger); }
+.row-menu button.danger-item:hover:not(:disabled) { background: var(--danger-soft); }
+.row-menu hr { border: 0; border-top: 1px solid var(--line); margin: .25rem .3rem; }
+@keyframes row-menu-in { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+@media (prefers-reduced-motion: reduce) { .row-menu:popover-open { animation: none; } }
