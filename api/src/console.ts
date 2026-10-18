@@ -1,9 +1,19 @@
 // Admin → Server: Konsole (Live-Log + Befehle über RCON) und Gamerules.
 // Gamerules liegen in der Welt (level.dat) – sie überleben Neustarts und kollidieren nicht mit der Docker-Konfiguration.
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import { requireAdmin } from './auth.ts';
 import { audit } from './users.ts';
-import { control, rcon } from './server-admin.ts';
+import { control, parsePlayerList, rcon } from './server-admin.ts';
+
+const MC_DATA_DIR = process.env.MC_DATA_DIR ?? '';
+
+/** max-players aus server.properties (gilt ab dem nächsten Start) */
+export function parseMaxPlayers(properties: string): number | null {
+  const m = /^max-players=(\d+)\s*$/m.exec(properties);
+  return m ? Number(m[1]) : null;
+}
 
 const LOG_LINES = 300;
 const MAX_COMMAND = 500;
@@ -97,6 +107,27 @@ export async function registerConsole(app: FastifyInstance) {
     }
     audit(req.user!.id, 'konsole', command.slice(0, 200));
     return { command, answer: plain(answer) };
+  });
+
+  // Maximale Spielerzahl: keine Gamerule, sondern server.properties – wirkt erst nach einem Neustart
+  app.get('/api/server/max-players', async (req, reply) => {
+    if (!requireAdmin(req, reply)) return;
+    const props = MC_DATA_DIR ? await readFile(join(MC_DATA_DIR, 'server.properties'), 'utf8').catch(() => '') : '';
+    const active = await rcon('list').then(([a]) => parsePlayerList(a).max || null).catch(() => null);
+    return { configured: parseMaxPlayers(props), active };
+  });
+
+  app.post<{ Body: { value?: number } }>('/api/server/max-players', async (req, reply) => {
+    if (!requireAdmin(req, reply)) return;
+    const value = req.body?.value;
+    if (!Number.isInteger(value) || value! < 1 || value! > 500) return reply.code(400).send({ error: 'Bitte eine Zahl von 1 bis 500.' });
+    try {
+      await control('POST', `/max-players?id=${value}`, 15_000);
+    } catch (err) {
+      return reply.code(502).send({ error: (err as Error).message });
+    }
+    audit(req.user!.id, 'max. spieler', String(value));
+    return { configured: value };
   });
 
   app.get('/api/server/gamerules', async (req, reply) => {

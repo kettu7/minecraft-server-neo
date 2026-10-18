@@ -5,7 +5,7 @@
 import { createServer, request, type IncomingMessage, type ServerResponse } from 'node:http';
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { chown, readdir, rename, rm, stat } from 'node:fs/promises';
+import { chown, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { timingSafeEqual } from 'node:crypto';
 import { join } from 'node:path';
 
@@ -167,6 +167,23 @@ async function restore(id: string) {
   }
 }
 
+/* ───────────────────────── Einstellungen ───────────────────────── */
+
+/** Maximale Spielerzahl in server.properties setzen – wirkt ab dem nächsten Start des Servers */
+async function setMaxPlayers(value?: string) {
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 1 || n > 500) throw new Error('Spielerzahl muss zwischen 1 und 500 liegen.');
+  const file = join(MC_DIR, 'server.properties');
+  const info = await stat(file);
+  const text = await readFile(file, 'utf8');
+  const next = /^max-players=.*$/m.test(text)
+    ? text.replace(/^max-players=.*$/m, `max-players=${n}`)
+    : `${text.trimEnd()}\nmax-players=${n}\n`;
+  await writeFile(file, next);
+  await chown(file, info.uid, info.gid).catch(() => undefined);
+  return { maxPlayers: n };
+}
+
 /* ───────────────────────── HTTP ───────────────────────── */
 
 function authorized(req: IncomingMessage) {
@@ -186,6 +203,7 @@ const ACTIONS: Record<string, (arg?: string) => Promise<unknown>> = {
   'POST /start': startServer,
   'POST /restart': async () => { await stopServer(); await startServer(); },
   'POST /restore': (id) => restore(id ?? ''),
+  'POST /max-players': (value) => setMaxPlayers(value),
 };
 
 createServer(async (req, res) => {

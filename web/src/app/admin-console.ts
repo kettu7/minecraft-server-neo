@@ -14,6 +14,8 @@ export class ConsoleService {
   private http = inject(HttpClient);
   logs() { return firstValueFrom(this.http.get<{ logs: string }>('/api/server/console')); }
   command(command: string) { return firstValueFrom(this.http.post<{ command: string; answer: string }>('/api/server/command', { command })); }
+  maxPlayers() { return firstValueFrom(this.http.get<{ configured: number | null; active: number | null }>('/api/server/max-players')); }
+  setMaxPlayers(value: number) { return firstValueFrom(this.http.post<{ configured: number }>('/api/server/max-players', { value })); }
   gamerules() { return firstValueFrom(this.http.get<{ rules: Gamerule[] }>('/api/server/gamerules')); }
   ops() { return firstValueFrom(this.http.get<{ ops: Operator[] }>('/api/server/ops')); }
   setOp(name: string, op: boolean) { return firstValueFrom(this.http.post<{ ops: Operator[] }>('/api/server/ops', { name, op })); }
@@ -175,6 +177,22 @@ const UNITS: Record<string, string> = {
       <section class="gamerule-group">
         <h4>{{ g.name }}</h4>
         <div class="gamerule-list">
+          @if (g.name === 'Spieler' && maxPlayers(); as m) {
+            <div class="gamerule" [class.changed]="m.configured !== m.active && m.active !== null">
+              <div class="gamerule-text">
+                <strong>Maximale Spielerzahl</strong>
+                <span class="hint">Gilt ab dem nächsten Neustart.</span>
+                <span class="gamerule-id mono">max-players
+                  @if (m.configured !== m.active && m.active !== null) { <span class="sep" aria-hidden="true"></span>Aktuell {{ m.active }}, nach Neustart {{ m.configured }} }
+                </span>
+              </div>
+              <label class="setting-field">
+                <input type="number" min="1" max="500" step="1" [value]="m.configured" [disabled]="saving() === 'max-players'" aria-label="Maximale Spielerzahl"
+                       (blur)="saveMaxPlayers($any($event.target))" (keydown.enter)="saveMaxPlayers($any($event.target))" />
+                <span>Spieler</span>
+              </label>
+            </div>
+          }
           @for (r of g.rules; track r.id) {
             <div class="gamerule" [class.changed]="isChanged(r)">
               <div class="gamerule-text">
@@ -211,6 +229,7 @@ export class GamerulesPanel {
   protected saving = signal('');
   protected error = signal('');
   protected query = signal('');
+  protected maxPlayers = signal<{ configured: number | null; active: number | null } | undefined>(undefined);
 
   protected info = (r: Gamerule) => GAMERULES[r.id];
   protected label = (r: Gamerule) => GAMERULES[r.id]?.label ?? r.id;
@@ -226,10 +245,14 @@ export class GamerulesPanel {
     const groupOf = (r: Gamerule): GameruleGroup => GAMERULES[r.id]?.group ?? 'Mods & Weitere';
     return GAMERULE_GROUPS
       .map((name) => ({ name, rules: this.rules().filter((r) => groupOf(r) === name && match(r)) }))
-      .filter((g) => g.rules.length);
+      .filter((g) => g.rules.length || (g.name === 'Spieler' && this.maxShown(q)));
   });
 
+  /** Spielerzahl auch über die Suche findbar */
+  private maxShown = (q: string) => !!this.maxPlayers() && (!q || 'maximale spielerzahl max-players spieler'.includes(q));
+
   constructor() {
+    this.api.maxPlayers().then((m) => this.maxPlayers.set(m)).catch(() => undefined);
     this.api.gamerules()
       .then(({ rules }) => {
         // Reihenfolge innerhalb der Gruppen wie in der Beschreibungsliste, unbekannte alphabetisch
@@ -253,6 +276,27 @@ export class GamerulesPanel {
       // Schalter/Feld auf den alten Wert zurücksetzen
       if (el?.type === 'checkbox') el.checked = r.value as boolean;
       else if (el) el.value = String(r.value);
+    } finally {
+      this.saving.set('');
+    }
+  }
+
+  async saveMaxPlayers(input: HTMLInputElement) {
+    const m = this.maxPlayers();
+    const value = Number(input.value);
+    if (!m || value === m.configured) return;
+    if (!Number.isInteger(value) || value < 1 || value > 500) {
+      input.value = String(m.configured ?? '');
+      return;
+    }
+    this.saving.set('max-players');
+    this.error.set('');
+    try {
+      const { configured } = await this.api.setMaxPlayers(value);
+      this.maxPlayers.set({ ...m, configured });
+    } catch (err) {
+      this.error.set(`Maximale Spielerzahl: ${errorMessage(err)}`);
+      input.value = String(m.configured ?? '');
     } finally {
       this.saving.set('');
     }

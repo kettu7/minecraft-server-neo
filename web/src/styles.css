@@ -1786,3 +1786,22 @@ details.card > app-console-panel > .small-text { color: var(--faint); font-size:
 .perf-tile .spark, .perf-tile app-sparkline { margin-top: auto; }
 app-sparkline { display: block; padding-top: .55rem; }
 .perf-tile .spark { margin-top: 0; }
+
+/* Admin: Seitenaktionen rechts in der Zeile des Untermenüs */
+.subnav-row { display: flex; justify-content: space-between; align-items: center; gap: .75rem 1rem; flex-wrap: wrap; margin-top: -.5rem; }
+.subnav-row .subnav { margin-top: 0; }
+.subnav-row .head-actions { margin-left: auto; }
+
+/* Status-Kacheln: Status | Spieler | Adresse + IP untereinander */
+.status-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr); }
+.status-row .connect-tile { display: grid; gap: .55rem; padding: .7rem .8rem; }
+.connect-tile .copy-field { grid-template-columns: 3.5rem minmax(0, 1fr); align-items: center; gap: .6rem; }
+.connect-tile .copy-input { height: 2.6rem; }
+@media (max-width: 720px) { .status-row { grid-template-columns: 1fr 1fr; } .status-row .connect-tile { grid-column: 1 / -1; } }
+
+/* Benutzer: Minecraft-Name und Whitelist-Status untereinander */
+.mc-cell { display: grid; gap: .25rem; justify-items: start; }
+@media (max-width: 640px) {
+  .subnav-row .head-actions { width: 100%; margin-left: 0; display: grid; grid-template-columns: 1fr 1fr; }
+  .subnav-row .head-actions > * { justify-content: center; white-space: nowrap; padding-inline: .6rem; }
+}

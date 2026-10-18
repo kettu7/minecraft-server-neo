@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isNoise, maskIps, parseGameruleHelp, parseGameruleValue, plain } from '../src/console.ts';
+import { isNoise, maskIps, parseGameruleHelp, parseGameruleValue, parseMaxPlayers, plain } from '../src/console.ts';
 
 test('IP-Adressen im Log werden unkenntlich', () => {
   assert.equal(
@@ -30,4 +30,9 @@ test('RCON-Verbindungsmeldungen gelten als Rauschen', () => {
   assert.ok(isNoise('[10:03:15] [RCON Client /x #92/INFO]: Thread RCON Client /x shutting down'));
   assert.ok(isNoise('[10:03:15] [RCON Listener #1/INFO]: Thread RCON Client /x started'));
   assert.ok(!isNoise('[10:03:15] [Server thread/INFO]: Steve joined the game'));
+});
+
+test('max-players aus server.properties', () => {
+  assert.equal(parseMaxPlayers('motd=Neo\nmax-players=25\npvp=true'), 25);
+  assert.equal(parseMaxPlayers('motd=Neo'), null);
 });

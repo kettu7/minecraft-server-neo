@@ -11,12 +11,16 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
       <h1>Admin Panel</h1>
       <p class="hint">Nutzer, Rollen und Mods.</p>
     </header>
-    <nav class="subnav">
-      <a routerLink="/admin" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Server</a>
-      <a routerLink="/admin/benutzer" routerLinkActive="active">Benutzer</a>
-      <a routerLink="/admin/mods" routerLinkActive="active">Servermods</a>
-      <a routerLink="/admin/modpack" routerLinkActive="active">Clientmods</a>
-    </nav>
+    <div class="subnav-row">
+      <nav class="subnav">
+        <a routerLink="/admin" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Server</a>
+        <a routerLink="/admin/benutzer" routerLinkActive="active">Benutzer</a>
+        <a routerLink="/admin/mods" routerLinkActive="active">Servermods</a>
+        <a routerLink="/admin/modpack" routerLinkActive="active">Clientmods</a>
+      </nav>
+      <!-- Seitenaktionen (z. B. Neu starten / Server stoppen) in derselben Zeile wie das Menü -->
+      <ng-content select="[navActions]" />
+    </div>
   `,
   styles: `:host { display: contents; }`,
 })

@@ -48,7 +48,24 @@ const POLL_MS = 5_000;
   selector: 'app-admin-server',
   imports: [AdminNav, BackupsPanel, ConsolePanel, GamerulesPanel, PerformancePanel, Icon],
   template: `
-    <app-admin-nav />
+    <app-admin-nav>
+      @if (info(); as i) {
+        <div navActions class="head-actions">
+          @if (state() === 'offline') {
+            <button type="button" class="with-icon" (click)="start()" [disabled]="busy() || !i.controlAvailable">
+              <app-icon name="player-play-filled" [size]="15" />{{ action() === 'start' ? 'Startet …' : 'Server starten' }}
+            </button>
+          } @else {
+            <button type="button" class="warning with-icon" (click)="restart()" [disabled]="busy() || !i.controlAvailable">
+              <app-icon name="rotate" [size]="15" />{{ action() === 'restart' ? 'Startet neu …' : 'Neu starten' }}
+            </button>
+            <button type="button" class="danger with-icon" (click)="stop()" [disabled]="busy() || !i.controlAvailable">
+              <app-icon name="player-stop-filled" [size]="15" />{{ action() === 'stop' ? 'Stoppt …' : 'Server stoppen' }}
+            </button>
+          }
+        </div>
+      }
+    </app-admin-nav>
 
     @if (error()) {
       <p class="error">{{ error() }}</p>
@@ -60,25 +77,10 @@ const POLL_MS = 5_000;
     @if (info(); as i) {
       <!-- Status, Steuerung und Verbindungsdaten -->
       <section class="card server-panel">
-        <header class="panel-head">
-          <h3>Status</h3>
-          <div class="head-actions">
-            @if (state() === 'offline') {
-              <button type="button" class="with-icon" (click)="start()" [disabled]="busy() || !i.controlAvailable">
-                <app-icon name="player-play" [size]="15" />{{ action() === 'start' ? 'Startet …' : 'Server starten' }}
-              </button>
-            } @else {
-              <button type="button" class="warning with-icon" (click)="restart()" [disabled]="busy() || !i.controlAvailable">
-                <app-icon name="rotate" [size]="15" />{{ action() === 'restart' ? 'Startet neu …' : 'Neu starten' }}
-              </button>
-              <button type="button" class="danger with-icon" (click)="stop()" [disabled]="busy() || !i.controlAvailable">
-                <app-icon name="player-stop" [size]="15" />{{ action() === 'stop' ? 'Stoppt …' : 'Server stoppen' }}
-              </button>
-            }
-          </div>
-        </header>
+        <h3>Status</h3>
 
-        <div class="stats inset">
+        <!-- Status, Spieler und Verbindungsdaten in einer Reihe -->
+        <div class="stats inset status-row">
           <div>
             <strong [class.ok]="state() === 'online'" [class.error]="state() === 'offline'">
               <span class="dot-inline" [attr.data-state]="state()"></span>{{ stateLabel() }}
@@ -89,27 +91,21 @@ const POLL_MS = 5_000;
             <strong>{{ i.players ? i.players.online + ' / ' + i.players.max : '–' }}</strong>
             <span class="hint">Spieler online</span>
           </div>
-          <div>
-            <strong>{{ memory() }}</strong>
-            <span class="hint">Arbeitsspeicher</span>
+          <div class="connect-tile">
+            @for (f of connectFields(i); track f.label) {
+              <div class="copy-field">
+                <span class="copy-label">{{ f.label }}</span>
+                <div class="copy-input">
+                  <code>{{ f.value }}</code>
+                  <button type="button" class="icon-btn framed" (click)="copy(f.value)"
+                          [title]="copied() === f.value ? 'Kopiert' : f.label + ' kopieren'" [attr.aria-label]="f.label + ' kopieren'">
+                    <app-icon [name]="copied() === f.value ? 'check' : 'copy'" [size]="16" />
+                  </button>
+                </div>
+              </div>
+            }
           </div>
         </div>
-
-        <div class="connect-fields">
-          @for (f of connectFields(i); track f.label) {
-            <div class="copy-field">
-              <span class="copy-label">{{ f.label }}</span>
-              <div class="copy-input">
-                <code>{{ f.value }}</code>
-                <button type="button" class="icon-btn framed" (click)="copy(f.value)"
-                        [title]="copied() === f.value ? 'Kopiert' : f.label + ' kopieren'" [attr.aria-label]="f.label + ' kopieren'">
-                  <app-icon [name]="copied() === f.value ? 'check' : 'copy'" [size]="16" />
-                </button>
-              </div>
-            </div>
-          }
-        </div>
-        <p class="hint small-text">Im Spiel unter Mehrspieler → Server hinzufügen eintragen.</p>
       </section>
 
       <section class="card perf-card">
@@ -268,10 +264,6 @@ export class AdminServer {
     if (!c?.running) return c ? 'Container gestoppt' : 'Steuerdienst nicht erreichbar';
     const minutes = Math.floor((Date.now() - new Date(c.startedAt).getTime()) / 60_000);
     return minutes < 60 ? `läuft seit ${minutes} Min.` : `läuft seit ${Math.floor(minutes / 60)} Std. ${minutes % 60} Min.`;
-  });
-  protected memory = computed(() => {
-    const m = this.container()?.memory;
-    return m ? `${(m.usage / 1024 ** 3).toLocaleString('de-DE', { maximumFractionDigits: 1 })} GB` : '–';
   });
 
   constructor() {

@@ -38,14 +38,16 @@ import { ConsoleService, Operator } from './admin-console';
             </td>
             <td>
               @if (u.minecraftName) {
+                <div class="mc-cell">
                 <span class="mono">{{ u.minecraftName }}</span>
                 @if (u.whitelistError) {
                   <div class="error small with-icon" [title]="u.whitelistError"><app-icon name="alert-triangle" [size]="14" />{{ u.whitelistError }}
                     <button class="link" (click)="retry(u)" [disabled]="busy()">erneut</button>
                   </div>
                 } @else if (u.whitelisted) {
-                  <div class="ok small with-icon"><app-icon name="check" [size]="14" />Whitelist</div>
+                  <div class="perf-status" data-state="good"><app-icon name="circle-check" [size]="14" />Whitelist</div>
                 }
+                </div>
               } @else {
                 <span class="hint">–</span>
               }
@@ -85,28 +87,6 @@ import { ConsoleService, Operator } from './admin-console';
         }
       </tbody>
     </table>
-
-    <section class="card">
-      <div class="project-head">
-        <h3>Operatoren ohne Website-Konto</h3>
-        <span class="hint">{{ otherOps().length }} Einträge</span>
-      </div>
-      <p class="hint small-text">OP-Rechte für Spieler, die kein Konto auf der Website haben. Für alle anderen in der Tabelle oben schalten.</p>
-      @if (otherOps().length) {
-        <ul class="ban-list">
-          @for (o of otherOps(); track o.name) {
-            <li>
-              <div><strong class="mono">{{ o.name }}</strong><div class="hint">Level {{ o.level }}</div></div>
-              <button class="secondary compact" (click)="setOp(o.name, false)" [disabled]="busy()">Entziehen</button>
-            </li>
-          }
-        </ul>
-      }
-      <form class="chat-form" (submit)="addOp($event, opName)">
-        <input #opName type="text" maxlength="16" placeholder="Minecraft-Name" aria-label="Minecraft-Name für OP-Rechte" autocomplete="off" />
-        <button type="submit" [disabled]="busy() || opsUnavailable()">OP vergeben</button>
-      </form>
-    </section>
 
     <section class="card">
       <div class="project-head">
@@ -172,10 +152,6 @@ export class Admin {
   /** Server nicht erreichbar → OP-Schalter gesperrt */
   protected opsUnavailable = signal(false);
   protected isOp = (name: string | null) => !!name && this.ops().some((o) => o.name.toLowerCase() === name.toLowerCase());
-  protected otherOps = computed(() => {
-    const known = new Set(this.users().map((u) => u.minecraftName?.toLowerCase()).filter(Boolean));
-    return this.ops().filter((o) => !known.has(o.name.toLowerCase()));
-  });
   protected bans = signal<WebsiteBan[]>([]);
   protected gameOnly = signal<GameBan[]>([]);
   protected audit = signal<AuditEntry[]>([]);
@@ -224,14 +200,6 @@ export class Admin {
       }
       return `OP-Rechte für ${name} ${verb}.`;
     });
-  }
-
-  addOp(event: Event, input: HTMLInputElement) {
-    event.preventDefault();
-    const name = input.value.trim();
-    if (!name) return;
-    this.setOp(name, true);
-    input.value = '';
   }
 
   async loadAudit() {

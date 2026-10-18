@@ -9,7 +9,7 @@ const ICONS = [
   'circle-dashed', 'circle-half-2', 'clipboard', 'confetti', 'copy', 'download', 'external-link', 'file', 'file-download',
   'hammer', 'info-circle', 'map-2', 'map-pin', 'note', 'pencil', 'photo', 'pin', 'plus', 'refresh', 'rotate', 'flip-vertical', 'selector',
   'stack-2', 'trash', 'upload', 'world', 'x', 'player-play', 'player-stop', 'settings', 'message-circle', 'database', 'users', 'arrow-down', 'dots', 'history', 'pinned-off', 'building-castle', 'pick', 'diamond', 'sword', 'walk', 'swimming', 'coins', 'meat', 'bomb', 'device-gamepad-2', 'skull', 'trophy', 'chevron-left', 'chevron-right', 'package', 'clock-hour-5',
-  'filled:circle-check', 'filled:crown', 'filled:pinned',
+  'filled:circle-check', 'filled:crown', 'filled:pinned', 'filled:player-play', 'filled:player-stop',
 ];
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
