@@ -66,6 +66,8 @@ await get('/api/audit');
 await get('/api/server');
 await get('/api/server/auto-restart');
 await get('/api/server/gamerules');
+await get('/api/server/ops');
+await get('/api/server/performance');
 await get('/api/dashboard');
 await get('/api/rankings');
 await get('/api/rankings/settings');

@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { AdminNav } from './admin-nav';
 import { BackupsPanel } from './admin-backups';
 import { ConsolePanel, GamerulesPanel } from './admin-console';
+import { PerformancePanel } from './admin-performance';
 import { errorMessage } from './projects.service';
 import { Icon } from './icon';
 
@@ -45,7 +46,7 @@ const POLL_MS = 5_000;
 
 @Component({
   selector: 'app-admin-server',
-  imports: [AdminNav, BackupsPanel, ConsolePanel, GamerulesPanel, Icon],
+  imports: [AdminNav, BackupsPanel, ConsolePanel, GamerulesPanel, PerformancePanel, Icon],
   template: `
     <app-admin-nav />
 
@@ -109,6 +110,11 @@ const POLL_MS = 5_000;
           }
         </div>
         <p class="hint small-text">Im Spiel unter Mehrspieler → Server hinzufügen eintragen.</p>
+      </section>
+
+      <section class="card perf-card">
+        <h3>Leistung</h3>
+        <app-performance-panel />
       </section>
 
       <section class="card">

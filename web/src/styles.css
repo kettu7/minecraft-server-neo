@@ -1746,3 +1746,43 @@ details.card > app-console-panel > .small-text { color: var(--faint); font-size:
 .gamerule.changed .gamerule-id { color: var(--warn); }
 .gamerule .switch { flex-shrink: 0; }
 .gamerule .setting-field input[type=number] { width: 5.5rem; height: 2.4rem; }
+
+/* ───────────────────────── Admin: Leistung ───────────────────────── */
+.perf-card { display: grid; gap: .9rem; }
+.perf-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(12.5rem, 1fr)); gap: .75rem; }
+.perf-tile {
+  display: grid; gap: .2rem; align-content: start; padding: .85rem 1rem .75rem; border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, .2); border: 1px solid var(--line);
+}
+.perf-label { font: 700 .7rem var(--font-body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.perf-tile strong { font: 800 1.35rem/1.2 var(--font-display); font-variant-numeric: tabular-nums; }
+.perf-sub { display: inline-flex; align-items: center; flex-wrap: wrap; font-size: .78rem; color: var(--faint); min-height: 1.2em; }
+.perf-status { display: inline-flex; align-items: center; gap: .35rem; font-size: .78rem; font-weight: 600; color: var(--text); min-height: 1.2em; }
+.perf-status[data-state="good"] .icon { color: var(--accent); }
+.perf-status[data-state="warn"] .icon { color: var(--warn); }
+.perf-status[data-state="bad"] .icon { color: var(--danger); }
+.perf-note { margin: 0; display: inline-flex; align-items: center; flex-wrap: wrap; color: var(--faint); font-size: .8rem; }
+
+/* Verlauf: eine Linie, dezente Fläche, Fadenkreuz + Tooltip beim Überfahren */
+.spark { position: relative; height: 48px; margin-top: .55rem; cursor: crosshair; touch-action: pan-y; }
+.spark svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.spark-base { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.spark-line { fill: none; stroke: var(--built); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.spark-area { fill: color-mix(in srgb, var(--built) 14%, transparent); stroke: none; }
+.spark-cross { stroke: rgba(255, 255, 255, .35); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.spark-dot {
+  position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%;
+  background: var(--built); box-shadow: 0 0 0 2px var(--bg-2, #0d1322); pointer-events: none;
+}
+.spark-tip {
+  position: absolute; bottom: calc(100% + 6px); transform: translateX(-50%); white-space: nowrap; pointer-events: none; z-index: 2;
+  display: inline-flex; gap: .45rem; align-items: baseline; padding: .3rem .55rem; border-radius: 7px; font-size: .74rem; color: var(--muted);
+  background: rgba(14, 20, 36, .96); border: 1px solid var(--glass-border); box-shadow: 0 8px 20px -8px rgba(0, 0, 0, .9);
+}
+.spark-tip b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.spark-tip.flip { transform: translateX(-100%); }
+/* Verläufe in allen Kacheln auf gleicher Höhe (unten) */
+.perf-tile { display: flex; flex-direction: column; }
+.perf-tile .spark, .perf-tile app-sparkline { margin-top: auto; }
+app-sparkline { display: block; padding-top: .55rem; }
+.perf-tile .spark { margin-top: 0; }

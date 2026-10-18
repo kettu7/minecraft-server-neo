@@ -5,6 +5,8 @@ import { errorMessage } from './projects.service';
 import { Icon } from './icon';
 import { GAMERULES, GAMERULE_GROUPS, GameruleGroup } from './gamerules';
 
+export interface Operator { name: string; level: number }
+
 export interface Gamerule { id: string; value: boolean | number; type: 'boolean' | 'integer' }
 
 @Injectable({ providedIn: 'root' })
@@ -13,6 +15,8 @@ export class ConsoleService {
   logs() { return firstValueFrom(this.http.get<{ logs: string }>('/api/server/console')); }
   command(command: string) { return firstValueFrom(this.http.post<{ command: string; answer: string }>('/api/server/command', { command })); }
   gamerules() { return firstValueFrom(this.http.get<{ rules: Gamerule[] }>('/api/server/gamerules')); }
+  ops() { return firstValueFrom(this.http.get<{ ops: Operator[] }>('/api/server/ops')); }
+  setOp(name: string, op: boolean) { return firstValueFrom(this.http.post<{ ops: Operator[] }>('/api/server/ops', { name, op })); }
   setGamerule(id: string, value: boolean | number) { return firstValueFrom(this.http.post<{ id: string; value: boolean | number }>('/api/server/gamerules', { id, value })); }
 }
 

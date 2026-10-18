@@ -48,10 +48,16 @@ async function status() {
   if (code !== 200) throw new Error(`Container ${CONTAINER} nicht gefunden`);
   const state = body.State;
   let memory: { usage: number; limit: number } | null = null;
+  /** CPU-Zähler roh (Nanosekunden); die API rechnet aus zwei Messungen die Auslastung */
+  let cpu: { total: number; system: number; cpus: number } | null = null;
   if (state.Running) {
     const stats = await docker('GET', `${container}/stats?stream=false&one-shot=true`);
     const m = stats.body?.memory_stats;
     if (m?.usage) memory = { usage: m.usage - (m.stats?.inactive_file ?? 0), limit: m.limit };
+    const c = stats.body?.cpu_stats;
+    if (c?.cpu_usage?.total_usage && c.system_cpu_usage) {
+      cpu = { total: c.cpu_usage.total_usage, system: c.system_cpu_usage, cpus: c.online_cpus ?? 1 };
+    }
   }
   return {
     running: state.Running as boolean,
@@ -59,6 +65,7 @@ async function status() {
     health: (state.Health?.Status ?? null) as string | null,
     startedAt: state.StartedAt as string,
     memory,
+    cpu,
   };
 }
 

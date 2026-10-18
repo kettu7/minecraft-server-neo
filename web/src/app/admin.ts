@@ -4,6 +4,7 @@ import { AuditEntry, AuthService, GameBan, Me, ROLE_LABELS, Role, WebsiteBan } f
 import { errorMessage, formatDate } from './projects.service';
 import { AdminNav } from './admin-nav';
 import { Icon } from './icon';
+import { ConsoleService, Operator } from './admin-console';
 
 @Component({
   selector: 'app-admin',
@@ -23,7 +24,7 @@ import { Icon } from './icon';
 
     <table class="materials users">
       <thead>
-        <tr><th>Benutzer</th><th>Minecraft</th><th>Rolle</th><th>Letzter Login</th><th class="num">Aktionen</th></tr>
+        <tr><th>Benutzer</th><th>Minecraft</th><th class="toggle-col" title="Operator-Rechte im Spiel">OP</th><th>Rolle</th><th>Letzter Login</th><th class="num">Aktionen</th></tr>
       </thead>
       <tbody>
         @for (u of users(); track u.id) {
@@ -47,6 +48,17 @@ import { Icon } from './icon';
                 }
               } @else {
                 <span class="hint">–</span>
+              }
+            </td>
+            <td class="toggle-col">
+              @if (u.minecraftName) {
+                <label class="switch" [title]="isOp(u.minecraftName) ? 'OP-Rechte entziehen' : 'OP-Rechte vergeben'">
+                  <input type="checkbox" [checked]="isOp(u.minecraftName)" [disabled]="busy() || opsUnavailable()"
+                         [attr.aria-label]="'OP für ' + u.minecraftName" (change)="setOp(u.minecraftName!, $any($event.target).checked, $any($event.target))" />
+                  <span></span>
+                </label>
+              } @else {
+                <span class="hint" title="Kein Minecraft-Name im Profil">–</span>
               }
             </td>
             <td>
@@ -73,6 +85,28 @@ import { Icon } from './icon';
         }
       </tbody>
     </table>
+
+    <section class="card">
+      <div class="project-head">
+        <h3>Operatoren ohne Website-Konto</h3>
+        <span class="hint">{{ otherOps().length }} Einträge</span>
+      </div>
+      <p class="hint small-text">OP-Rechte für Spieler, die kein Konto auf der Website haben. Für alle anderen in der Tabelle oben schalten.</p>
+      @if (otherOps().length) {
+        <ul class="ban-list">
+          @for (o of otherOps(); track o.name) {
+            <li>
+              <div><strong class="mono">{{ o.name }}</strong><div class="hint">Level {{ o.level }}</div></div>
+              <button class="secondary compact" (click)="setOp(o.name, false)" [disabled]="busy()">Entziehen</button>
+            </li>
+          }
+        </ul>
+      }
+      <form class="chat-form" (submit)="addOp($event, opName)">
+        <input #opName type="text" maxlength="16" placeholder="Minecraft-Name" aria-label="Minecraft-Name für OP-Rechte" autocomplete="off" />
+        <button type="submit" [disabled]="busy() || opsUnavailable()">OP vergeben</button>
+      </form>
+    </section>
 
     <section class="card">
       <div class="project-head">
@@ -133,6 +167,15 @@ export class Admin {
   protected date = formatDate;
 
   protected users = signal<Me[]>([]);
+  private server = inject(ConsoleService);
+  protected ops = signal<Operator[]>([]);
+  /** Server nicht erreichbar → OP-Schalter gesperrt */
+  protected opsUnavailable = signal(false);
+  protected isOp = (name: string | null) => !!name && this.ops().some((o) => o.name.toLowerCase() === name.toLowerCase());
+  protected otherOps = computed(() => {
+    const known = new Set(this.users().map((u) => u.minecraftName?.toLowerCase()).filter(Boolean));
+    return this.ops().filter((o) => !known.has(o.name.toLowerCase()));
+  });
   protected bans = signal<WebsiteBan[]>([]);
   protected gameOnly = signal<GameBan[]>([]);
   protected audit = signal<AuditEntry[]>([]);
@@ -154,6 +197,41 @@ export class Admin {
     } catch (err) {
       this.error.set(errorMessage(err));
     }
+    try {
+      this.ops.set((await this.server.ops()).ops);
+      this.opsUnavailable.set(false);
+    } catch {
+      this.opsUnavailable.set(true);
+    }
+  }
+
+  setOp(name: string, op: boolean, el?: HTMLInputElement) {
+    const verb = op ? 'vergeben' : 'entzogen';
+    if (!op && !confirm(`${name} die OP-Rechte entziehen?`)) {
+      if (el) el.checked = true;
+      return;
+    }
+    if (op && !confirm(`${name} OP-Rechte geben? Damit sind im Spiel alle Befehle erlaubt (z. B. /gamemode, /give, /stop).`)) {
+      if (el) el.checked = false;
+      return;
+    }
+    this.run(async () => {
+      try {
+        this.ops.set((await this.server.setOp(name, op)).ops);
+      } catch (err) {
+        if (el) el.checked = !op;
+        throw err;
+      }
+      return `OP-Rechte für ${name} ${verb}.`;
+    });
+  }
+
+  addOp(event: Event, input: HTMLInputElement) {
+    event.preventDefault();
+    const name = input.value.trim();
+    if (!name) return;
+    this.setOp(name, true);
+    input.value = '';
   }
 
   async loadAudit() {
