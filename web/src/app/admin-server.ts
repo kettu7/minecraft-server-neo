@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { AdminNav } from './admin-nav';
 import { BackupsPanel } from './admin-backups';
+import { ConsolePanel, GamerulesPanel } from './admin-console';
 import { errorMessage } from './projects.service';
 import { Icon } from './icon';
 
@@ -44,7 +45,7 @@ const POLL_MS = 5_000;
 
 @Component({
   selector: 'app-admin-server',
-  imports: [AdminNav, BackupsPanel, Icon],
+  imports: [AdminNav, BackupsPanel, ConsolePanel, GamerulesPanel, Icon],
   template: `
     <app-admin-nav />
 
@@ -210,6 +211,16 @@ const POLL_MS = 5_000;
         }
       </section>
 
+      <details class="card" (toggle)="gamerulesOpen.set($any($event.target).open)">
+        <summary>Gamerules</summary>
+        @if (gamerulesOpen()) { <app-gamerules-panel /> }
+      </details>
+
+      <details class="card" (toggle)="consoleOpen.set($any($event.target).open)">
+        <summary>Konsole</summary>
+        @if (consoleOpen()) { <app-console-panel /> }
+      </details>
+
       <details class="card" (toggle)="backupsOpen.set($any($event.target).open)">
         <summary>Backups</summary>
         @if (backupsOpen()) { <app-backups-panel /> }
@@ -226,6 +237,8 @@ export class AdminServer {
   /** laufende Server-Aktion für die Button-Beschriftung */
   protected action = signal<'' | 'restart' | 'stop' | 'start'>('');
   protected backupsOpen = signal(false);
+  protected gamerulesOpen = signal(false);
+  protected consoleOpen = signal(false);
   protected autoRestart = signal<AutoRestart | undefined>(undefined);
   protected ranking = signal<RankingSettings | undefined>(undefined);
   protected error = signal('');

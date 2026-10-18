@@ -1703,3 +1703,46 @@ body:has(app-dashboard)::before { opacity: .34; }
 app-creative-tabs { display: block; min-width: 0; }
 .browser { grid-template-columns: minmax(0, 1fr); }
 .item-tile .item-name { overflow-wrap: anywhere; hyphens: auto; }
+
+/* ───────────────────────── Admin: Konsole ───────────────────────── */
+details.card > app-console-panel, details.card > app-gamerules-panel { display: grid; gap: .9rem; position: relative; }
+.console-log {
+  height: 24rem; overflow: auto; padding: .75rem .9rem; border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, .45); border: 1px solid var(--line); box-shadow: inset 0 2px 8px rgba(0, 0, 0, .45);
+  font: .78rem/1.5 var(--font-mono); color: var(--muted); overscroll-behavior: contain;
+}
+.console-line { white-space: pre-wrap; overflow-wrap: anywhere; }
+.console-line[data-level="warn"] { color: var(--warn); }
+.console-line[data-level="error"] { color: var(--danger); }
+.console-jump { position: absolute; right: 1rem; top: 21.5rem; z-index: 1; }
+.console-answers { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
+.console-answers li {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .75rem; align-items: baseline;
+  padding: .45rem .7rem; border-radius: 8px; background: rgba(0, 0, 0, .22); font-size: .82rem;
+}
+.console-answers .mono { color: var(--accent); white-space: nowrap; }
+.console-answers span:last-child { color: var(--text); overflow-wrap: anywhere; }
+.console-form { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: .6rem; align-items: center; }
+.console-form input { font-family: var(--font-mono); }
+.console-form button { height: var(--control-h); }
+.console-prompt { font: 700 1.1rem var(--font-mono); color: var(--accent); padding-left: .2rem; }
+details.card > app-console-panel > .small-text { color: var(--faint); font-size: .8rem; margin: -.3rem 0 0; }
+
+/* ───────────────────────── Admin: Gamerules ───────────────────────── */
+.gamerule-toolbar { margin: 0; }
+.gamerule-toolbar input { max-width: 22rem; }
+.gamerule-group { display: grid; gap: .5rem; }
+.gamerule-group h4 { margin: .4rem 0 0; font: 700 .78rem var(--font-body); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.gamerule-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); gap: .5rem; }
+.gamerule {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .7rem .9rem;
+  border-radius: var(--radius-sm); background: rgba(0, 0, 0, .2); border: 1px solid var(--line);
+}
+.gamerule.changed { border-color: rgba(246, 195, 91, .3); box-shadow: inset 2px 0 0 var(--warn); }
+.gamerule-text { display: grid; gap: .15rem; min-width: 0; }
+.gamerule-text strong { font-size: .9rem; font-weight: 600; }
+.gamerule-text .hint { margin: 0; font-size: .78rem; color: var(--faint); line-height: 1.35; }
+.gamerule-id { display: inline-flex; align-items: center; flex-wrap: wrap; font-size: .7rem; color: color-mix(in srgb, var(--faint) 80%, var(--bg)); }
+.gamerule.changed .gamerule-id { color: var(--warn); }
+.gamerule .switch { flex-shrink: 0; }
+.gamerule .setting-field input[type=number] { width: 5.5rem; height: 2.4rem; }

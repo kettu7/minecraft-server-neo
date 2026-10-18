@@ -82,10 +82,12 @@ async function startServer() {
 }
 
 /** Letzte Log-Zeilen des Servers (für Fehlermeldungen nach einem missglückten Start) */
-function logs(): Promise<{ logs: string }> {
+/** letzte Zeilen des Server-Logs; tail begrenzt auf 1–1000 */
+function logs(tail = '80'): Promise<{ logs: string }> {
+  const lines = Math.min(1000, Math.max(1, Number.parseInt(tail, 10) || 80));
   return new Promise((resolve, reject) => {
     const req = request(
-      { socketPath: '/var/run/docker.sock', method: 'GET', path: `${container}/logs?stdout=1&stderr=1&tail=80`, timeout: 15_000 },
+      { socketPath: '/var/run/docker.sock', method: 'GET', path: `${container}/logs?stdout=1&stderr=1&tail=${lines}`, timeout: 15_000 },
       (res) => {
         const chunks: Buffer[] = [];
         res.on('data', (c: Buffer) => chunks.push(c));
@@ -172,7 +174,7 @@ function send(res: ServerResponse, code: number, body: unknown) {
 
 const ACTIONS: Record<string, (arg?: string) => Promise<unknown>> = {
   'GET /status': status,
-  'GET /logs': logs,
+  'GET /logs': (tail) => logs(tail),
   'POST /stop': stopServer,
   'POST /start': startServer,
   'POST /restart': async () => { await stopServer(); await startServer(); },
@@ -189,7 +191,7 @@ createServer(async (req, res) => {
   if (mutating && busy) return send(res, 409, { error: 'Es läuft bereits eine Server-Aktion.' });
   if (mutating) busy = true;
   try {
-    const result = await action(url.searchParams.get('id') ?? undefined);
+    const result = await action(url.searchParams.get('id') ?? url.searchParams.get('tail') ?? undefined);
     console.log(new Date().toISOString(), req.method, url.pathname, url.searchParams.get('id') ?? '', 'ok');
     send(res, 200, result ?? { ok: true });
   } catch (err) {
