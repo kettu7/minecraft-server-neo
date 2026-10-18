@@ -9,7 +9,8 @@ import { requireAdmin } from './auth.ts';
 import { audit, MINECRAFT_NAME } from './users.ts';
 import { db } from './db.ts';
 import { banInGame, cleanReason } from './moderation.ts';
-import { BACKUP_ID, createBackup, setPinned } from './backup.ts';
+import { BACKUP_ID, createBackup, readMeta, setPinned } from './backup.ts';
+import { setWorldName } from './world-name.ts';
 
 const CONTROL_URL = process.env.CONTROL_URL ?? '';
 const MC_DATA_DIR = process.env.MC_DATA_DIR ?? '';
@@ -261,6 +262,9 @@ export async function registerServerAdmin(app: FastifyInstance) {
       audit(req.user!.id, 'wiederherstellung fehlgeschlagen', `${id}: ${(err as Error).message}`);
       return reply.code(502).send({ error: `Zurückspielen fehlgeschlagen: ${(err as Error).message}. Sicherheits-Backup: ${safety.id}` });
     }
+    // Die zurückgespielte Welt trägt wieder ihren Namen aus dem Backup
+    const restoredWorld = (await readMeta(id))?.world;
+    if (restoredWorld) setWorldName(restoredWorld);
     audit(req.user!.id, 'backup zurückgespielt', `${id} (Sicherheits-Backup ${safety.id})`);
     return { ok: true, safetyBackup: safety.id };
   });

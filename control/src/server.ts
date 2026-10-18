@@ -88,7 +88,6 @@ async function startServer() {
   if (code !== 204 && code !== 304) throw new Error(`Start fehlgeschlagen: ${JSON.stringify(body)}`);
 }
 
-/** Letzte Log-Zeilen des Servers (für Fehlermeldungen nach einem missglückten Start) */
 /** letzte Zeilen des Server-Logs; tail begrenzt auf 1–1000 */
 function logs(tail = '80'): Promise<{ logs: string }> {
   const lines = Math.min(1000, Math.max(1, Number.parseInt(tail, 10) || 80));
@@ -184,6 +183,28 @@ async function setMaxPlayers(value?: string) {
   return { maxPlayers: n };
 }
 
+/** Neue Welt: Server stoppen, Weltordner löschen (das Archiv-Backup hat die API vorher angelegt),
+ *  Seed setzen (leer = zufällig), Server starten – Minecraft erzeugt die Welt beim Start neu. */
+async function newWorld(seed = '') {
+  if (seed.length > 64 || /[\r\n]/.test(seed)) throw new Error('Ungültiger Seed.');
+  const file = join(MC_DIR, 'server.properties');
+  const info = await stat(file);
+  await stopServer();
+  try {
+    for (const dir of ['world', 'world.before-restore']) await rm(join(MC_DIR, dir), { recursive: true, force: true });
+    const text = await readFile(file, 'utf8');
+    const line = `level-seed=${seed}`;
+    const next = /^level-seed=.*$/m.test(text)
+      ? text.replace(/^level-seed=.*$/m, line)
+      : `${text.trimEnd()}\n${line}\n`;
+    await writeFile(file, next);
+    await chown(file, info.uid, info.gid).catch(() => undefined);
+  } finally {
+    await startServer();
+  }
+  return { ok: true };
+}
+
 /* ───────────────────────── HTTP ───────────────────────── */
 
 function authorized(req: IncomingMessage) {
@@ -204,6 +225,7 @@ const ACTIONS: Record<string, (arg?: string) => Promise<unknown>> = {
   'POST /restart': async () => { await stopServer(); await startServer(); },
   'POST /restore': (id) => restore(id ?? ''),
   'POST /max-players': (value) => setMaxPlayers(value),
+  'POST /new-world': (seed) => newWorld(seed ?? ''),
 };
 
 createServer(async (req, res) => {

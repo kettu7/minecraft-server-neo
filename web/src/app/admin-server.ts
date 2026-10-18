@@ -5,6 +5,7 @@ import { AdminNav } from './admin-nav';
 import { BackupsPanel } from './admin-backups';
 import { ConsolePanel, GamerulesPanel } from './admin-console';
 import { PerformancePanel } from './admin-performance';
+import { NewWorld } from './admin-world';
 import { errorMessage } from './projects.service';
 import { Icon } from './icon';
 
@@ -46,7 +47,7 @@ const POLL_MS = 5_000;
 
 @Component({
   selector: 'app-admin-server',
-  imports: [AdminNav, BackupsPanel, ConsolePanel, GamerulesPanel, PerformancePanel, Icon],
+  imports: [AdminNav, BackupsPanel, ConsolePanel, GamerulesPanel, PerformancePanel, NewWorld, Icon],
   template: `
     <app-admin-nav>
       @if (info(); as i) {
@@ -227,6 +228,11 @@ const POLL_MS = 5_000;
         <summary>Backups</summary>
         @if (backupsOpen()) { <app-backups-panel /> }
       </details>
+
+      <!-- Ganz unten: Welt benennen und komplett neu erzeugen -->
+      <section class="card new-world-card">
+        <app-new-world (created)="reload()" />
+      </section>
     } @else if (!error()) {
       <p class="hint">Lade …</p>
     }
@@ -272,6 +278,11 @@ export class AdminServer {
 
   ngOnDestroy() {
     clearInterval(this.timer);
+  }
+
+  /** nach dem Erzeugen einer neuen Welt: Status sofort aktualisieren */
+  protected reload() {
+    this.load();
   }
 
   private async load() {

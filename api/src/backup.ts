@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import type { FastifyBaseLogger } from 'fastify';
 import { IMAGE_DIR, SCHEMATIC_DIR, db } from './db.ts';
 import { Rcon } from './rcon.ts';
+import { currentWorldName } from './world-name.ts';
 
 export const BACKUP_DIR = process.env.BACKUP_DIR ?? join(import.meta.dirname, '..', '..', 'backups');
 export const INTERVAL_MINUTES = Number(process.env.BACKUP_INTERVAL_MINUTES ?? 60);
@@ -33,10 +34,13 @@ export const BACKUP_ID = /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/;
 
 export interface BackupMeta {
   createdAt: string;
-  kind: 'auto' | 'manual' | 'import';
+  /** archive = letzter Stand einer Welt vor „Neue Welt erzeugen“; import = frühere Umzugspakete */
+  kind: 'auto' | 'manual' | 'archive' | 'import';
   by: string | null;
   durationMs: number;
   pinned: boolean;
+  /** Name der Welt zum Zeitpunkt des Backups (ältere Backups haben keinen) */
+  world?: string;
 }
 
 export interface Backup extends BackupMeta {
@@ -84,7 +88,7 @@ async function dirSize(dir: string): Promise<number> {
   return total;
 }
 
-async function readMeta(id: string): Promise<BackupMeta | undefined> {
+export async function readMeta(id: string): Promise<BackupMeta | undefined> {
   try {
     return JSON.parse(await readFile(join(BACKUP_DIR, id, META), 'utf8'));
   } catch {
@@ -162,7 +166,9 @@ export function backupStatus() {
   };
 }
 
-export async function createBackup(kind: BackupMeta['kind'], by: string | null, log: FastifyBaseLogger): Promise<Backup> {
+export async function createBackup(
+  kind: BackupMeta['kind'], by: string | null, log: FastifyBaseLogger, options: { pinned?: boolean } = {},
+): Promise<Backup> {
   if (running) throw new Error('Es läuft bereits ein Backup.');
   running = true;
   const start = new Date();
@@ -188,7 +194,10 @@ export async function createBackup(kind: BackupMeta['kind'], by: string | null, 
     await cp(SCHEMATIC_DIR, join(partial, 'schematics'), { recursive: true });
     await cp(IMAGE_DIR, join(partial, 'images'), { recursive: true });
 
-    const meta: BackupMeta = { createdAt: start.toISOString(), kind, by, durationMs: Date.now() - start.getTime(), pinned: false };
+    const meta: BackupMeta = {
+      createdAt: start.toISOString(), kind, by, durationMs: Date.now() - start.getTime(), pinned: options.pinned === true,
+      world: currentWorldName(),
+    };
     await writeFile(join(partial, META), JSON.stringify(meta, null, 2));
     await rename(partial, join(BACKUP_DIR, id));
 

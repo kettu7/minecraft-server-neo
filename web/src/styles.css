@@ -944,8 +944,6 @@ main:has(> .map-page) { max-width: none; padding-bottom: 1.5rem; }
   padding: .4rem .7rem; border-radius: 99px; background: rgba(9, 13, 24, .8); border: 1px solid var(--glass-border);
 }
 
-/* Backup-Art "Umzugspaket" (frühere Übernahmen) */
-.status.import { color: var(--built); background: rgba(90, 169, 255, .1); border-color: rgba(90, 169, 255, .28); }
 
 /* ───────────────────────── Icons ───────────────────────── */
 .icon { display: inline-flex; flex-shrink: 0; vertical-align: -.15em; line-height: 0; }
@@ -1805,3 +1803,27 @@ app-sparkline { display: block; padding-top: .55rem; }
   .subnav-row .head-actions { width: 100%; margin-left: 0; display: grid; grid-template-columns: 1fr 1fr; }
   .subnav-row .head-actions > * { justify-content: center; white-space: nowrap; padding-inline: .6rem; }
 }
+
+/* ───────────────────────── Admin: Welt / Neue Welt ───────────────────────── */
+.new-world-card { border-color: rgba(255, 107, 107, .22); }
+app-new-world { display: grid; }
+.world-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem 1.5rem; flex-wrap: wrap; }
+.world-current { display: flex; align-items: center; gap: .5rem; margin: .4rem 0 0; }
+.world-current .icon-btn { padding: .3rem; }
+.world-head .small-text { color: var(--faint); font-size: .8rem; margin: .25rem 0 0; }
+.world-rename { display: flex; align-items: center; gap: .5rem; margin-top: .4rem; flex-wrap: wrap; }
+.world-rename input { max-width: 16rem; height: 2.5rem; }
+.new-world-card .create-reveal.open { margin-top: 1rem; }
+.new-world-form { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.new-world-form label { display: grid; gap: .35rem; font-size: .82rem; font-weight: 600; color: var(--muted); }
+.new-world-form label .hint { font-weight: 400; font-size: .78rem; }
+.new-world-form .wide { grid-column: 1 / -1; }
+.new-world-form .form-footer { display: flex; justify-content: flex-end; gap: .75rem; align-items: center; }
+.new-world-steps { grid-column: 1 / -1; list-style: none; margin: 0; padding: .8rem 1rem; display: grid; gap: .45rem;
+  border-radius: var(--radius-sm); background: rgba(0, 0, 0, .2); border: 1px solid var(--line); font-size: .86rem; }
+.new-world-steps li { display: flex; gap: .55rem; align-items: flex-start; }
+.new-world-steps .icon { margin-top: .15rem; color: var(--muted); flex-shrink: 0; }
+.new-world-steps li:nth-child(2) .icon { color: var(--warn); }
+.new-world-steps b { color: #cfe6ff; font-weight: 600; }
+@media (max-width: 640px) { .new-world-form { grid-template-columns: 1fr; } }
+.backup-world { white-space: nowrap; font-size: .88rem; }

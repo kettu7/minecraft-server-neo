@@ -8,7 +8,10 @@ import { Icon } from './icon';
 export interface Backup {
   id: string;
   createdAt: string;
-  kind: 'auto' | 'manual' | 'import';
+  /** archive = letzter Stand einer Welt vor „Neue Welt erzeugen“; import = frühere Umzugspakete (wie manuell) */
+  kind: 'auto' | 'manual' | 'archive' | 'import';
+  /** Name der Welt zum Zeitpunkt des Backups */
+  world?: string;
   by: string | null;
   durationMs: number;
   pinned: boolean;
@@ -97,6 +100,7 @@ const POLL_MS = 15_000;
           <thead>
             <tr>
               <th>Backup</th>
+              <th>Welt</th>
               <th class="status-col">Art</th>
               <th class="num">Größe</th>
               <th class="num">Dauer</th>
@@ -118,8 +122,9 @@ const POLL_MS = 15_000;
                     </span>
                   </div>
                 </td>
+                <td class="backup-world">{{ b.world ?? '–' }}</td>
                 <td class="status-col">
-                  <span class="pill" [attr.data-state]="b.kind === 'manual' ? 'covered' : b.kind === 'import' ? 'done' : 'off'"><i></i>{{ kindLabel(b) }}</span>
+                  <span class="pill" [attr.data-state]="b.kind === 'archive' ? 'done' : isManual(b) ? 'covered' : 'off'"><i></i>{{ kindLabel(b) }}</span>
                 </td>
                 <td class="num">{{ size(b.totalBytes) }}</td>
                 <td class="num zero">{{ b.durationMs / 1000 | number: '1.1-1' }} s</td>
@@ -137,7 +142,7 @@ const POLL_MS = 15_000;
                 </td>
               </tr>
             } @empty {
-              <tr class="empty"><td colspan="5">{{ backups().length ? 'Keine Backups in dieser Ansicht.' : 'Noch keine Backups.' }}</td></tr>
+              <tr class="empty"><td colspan="6">{{ backups().length ? 'Keine Backups in dieser Ansicht.' : 'Noch keine Backups.' }}</td></tr>
             }
           </tbody>
         </table>
@@ -174,19 +179,20 @@ export class BackupsPanel {
   protected creating = signal(false);
   protected error = signal('');
   protected notice = signal('');
-  protected filter = signal<'all' | 'pinned' | 'auto' | 'manual'>('all');
+  protected filter = signal<'all' | 'pinned' | 'auto' | 'manual' | 'archive'>('all');
   protected filters = computed(() => {
     const b = this.backups();
     return [
       { key: 'all' as const, label: 'Alle', count: b.length },
       { key: 'pinned' as const, label: 'Angepinnt', count: b.filter((x) => x.pinned).length },
       { key: 'auto' as const, label: 'Automatisch', count: b.filter((x) => x.kind === 'auto').length },
-      { key: 'manual' as const, label: 'Manuell', count: b.filter((x) => x.kind === 'manual').length },
+      { key: 'manual' as const, label: 'Manuell', count: b.filter((x) => this.isManual(x)).length },
+      { key: 'archive' as const, label: 'Archiviert', count: b.filter((x) => x.kind === 'archive').length },
     ];
   });
   protected visible = computed(() => {
     const f = this.filter();
-    return this.backups().filter((b) => f === 'all' || (f === 'pinned' ? b.pinned : b.kind === f));
+    return this.backups().filter((b) => f === 'all' || (f === 'pinned' ? b.pinned : f === 'manual' ? this.isManual(b) : b.kind === f));
   });
   protected menuFor = signal<Backup | undefined>(undefined);
   protected menuPos = signal({ top: 0, left: 0 });
@@ -237,8 +243,11 @@ Vorher wird automatisch ein Sicherheits-Backup erstellt.`)) return;
     });
   }
 
+  /** frühere Umzugspakete zählen wie manuelle Backups */
+  protected isManual = (b: Backup) => b.kind === 'manual' || b.kind === 'import';
+
   protected kindLabel(b: Backup) {
-    return b.kind === 'import' ? 'Umzugspaket' : b.kind === 'manual' ? 'Manuell' : 'Automatisch';
+    return b.kind === 'archive' ? 'Welt archiviert' : this.isManual(b) ? 'Manuell' : 'Automatisch';
   }
 
   /** Menü rechtsbündig unter dem Punkte-Button öffnen; bei Platzmangel darüber */
