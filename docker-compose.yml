@@ -53,6 +53,8 @@ services:
   # API: Projekte, Lager, Konten, Backups. Nur intern erreichbar (über die Website unter /api).
   api:
     build: ./api
+    # Niedrige CPU-Priorität: Backups (Packen der Welt) bremsen das Spiel nicht, nutzen aber freie Rechenzeit voll
+    cpu_shares: 256
     container_name: neo-api
     env_file: .env
     environment:

@@ -154,6 +154,13 @@ function streamWorldArchive(target: string): Promise<void> {
 let running = false;
 let lastRun: { at: string; ok: boolean; error?: string; id?: string } | undefined;
 let nextRunAt: Date | undefined;
+let onlyWithPlayers = false;
+
+/** Zeitplan kommt aus backup-schedule.ts (Spieleraktivität) */
+export function setSchedule(next: Date | undefined, withPlayers: boolean) {
+  nextRunAt = next;
+  onlyWithPlayers = withPlayers;
+}
 
 export function backupStatus() {
   return {
@@ -161,6 +168,7 @@ export function backupStatus() {
     lastRun: lastRun ?? null,
     nextRunAt: nextRunAt?.toISOString() ?? null,
     intervalMinutes: INTERVAL_MINUTES,
+    onlyWithPlayers,
     keepHours: KEEP_HOURS,
     keepDays: KEEP_DAYS,
   };
@@ -237,23 +245,3 @@ async function prune(log: FastifyBaseLogger) {
     if (entry.endsWith('.partial') && !running) await rm(join(BACKUP_DIR, entry), { recursive: true, force: true });
   }
 }
-
-/** Automatische Backups: beim Start nachholen, wenn das letzte zu alt ist, danach im festen Takt. */
-export async function startBackupScheduler(log: FastifyBaseLogger) {
-  if (!(INTERVAL_MINUTES > 0)) return;
-  const interval = INTERVAL_MINUTES * 60_000;
-  const run = () => {
-    nextRunAt = new Date(Date.now() + interval);
-    createBackup('auto', null, log).catch(() => undefined);
-  };
-  const [latest] = await listBackups();
-  const due = !latest || Date.now() - new Date(latest.createdAt).getTime() >= interval;
-  const firstDelay = due ? 60_000 : interval - (Date.now() - new Date(latest.createdAt).getTime());
-  nextRunAt = new Date(Date.now() + firstDelay);
-  setTimeout(() => {
-    run();
-    setInterval(run, interval).unref();
-  }, firstDelay).unref();
-  log.info(`Automatische Backups alle ${INTERVAL_MINUTES} Min. (nächstes ${nextRunAt.toLocaleTimeString('de-DE')})`);
-}
-

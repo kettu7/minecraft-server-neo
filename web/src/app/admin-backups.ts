@@ -24,6 +24,8 @@ export interface BackupStatus {
   lastRun: { at: string; ok: boolean; error?: string; id?: string } | null;
   nextRunAt: string | null;
   intervalMinutes: number;
+  /** stündlich nur, wenn seit dem letzten Backup jemand gespielt hat */
+  onlyWithPlayers: boolean;
   keepHours: number;
   keepDays: number;
 }
@@ -62,7 +64,10 @@ const POLL_MS = 15_000;
         </div>
         <div>
           <strong>alle {{ s.intervalMinutes }} Min.</strong>
-          <span class="hint">nächstes {{ s.nextRunAt ? time(s.nextRunAt) : '–' }}</span>
+          <span class="hint">
+            @if (s.onlyWithPlayers) { bei Spielern<span class="sep" aria-hidden="true"></span>frühestens {{ s.nextRunAt ? time(s.nextRunAt) : '–' }} }
+            @else { nächstes {{ s.nextRunAt ? time(s.nextRunAt) : '–' }} }
+          </span>
         </div>
         <div>
           <strong>{{ s.keepHours }} h + {{ s.keepDays }} Tage</strong>

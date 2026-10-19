@@ -11,6 +11,7 @@ import { registerAuth, requireAdmin } from './auth.ts';
 import { liveStatus, MC_ADDRESS, registerServerAdmin } from './server-admin.ts';
 import { registerStats, rankingSettings } from './stats.ts';
 import { nextRestartAt, registerAutoRestart } from './auto-restart.ts';
+import { registerBackupSettings, startBackupScheduler } from './backup-schedule.ts';
 import { registerConsole } from './console.ts';
 import { registerPerformance } from './performance.ts';
 import { registerOps } from './ops.ts';
@@ -21,7 +22,7 @@ import { registerModpack } from './modpack.ts';
 import { contentDisposition } from './download-name.ts';
 import { audit } from './users.ts';
 import {
-  backupStatus, createBackup, deleteBackup, listBackups, setPinned, startBackupScheduler, worldArchivePath,
+  backupStatus, createBackup, deleteBackup, listBackups, setPinned, worldArchivePath,
 } from './backup.ts';
 import { refresh, refreshStatus, startScheduler, type RefreshReport } from './refresh.ts';
 import {
@@ -38,6 +39,7 @@ await app.register(multipart, { limits: { fileSize: 20 * 1024 * 1024, files: 2 }
 await registerAuth(app);
 await registerServerAdmin(app);
 await registerAutoRestart(app);
+registerBackupSettings(app);
 await registerStats(app);
 await registerConsole(app);
 await registerPerformance(app);

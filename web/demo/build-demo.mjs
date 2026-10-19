@@ -72,6 +72,7 @@ await get('/api/dashboard');
 await get('/api/rankings');
 await get('/api/rankings/settings');
 await get('/api/backups');
+await get('/api/backups/settings');
 const mods = await get('/api/mods');
 for (const v of [...(mods?.minecraft?.newerReleases ?? []), ...(mods?.minecraft?.snapshots ?? [])]) {
   await get(`/api/mods/upgrade?version=${encodeURIComponent(v.version)}`);

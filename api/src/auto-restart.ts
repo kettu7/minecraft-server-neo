@@ -1,10 +1,12 @@
 // Geplanter Neustart: jeden Tag zur festen Uhrzeit (Zeitzone des Containers, TZ=Europe/Berlin).
-// 15, 5 und 1 Minute vorher wird im Chat angekündigt, direkt davor ein Backup gezogen.
+// 15, 5 und 1 Minute vorher wird im Chat angekündigt, direkt davor ein Backup gezogen –
+// bei „Backups nur bei Spieleraktivität“ nur, wenn seit dem letzten Backup jemand gespielt hat.
 // Läuft der Server zur geplanten Zeit nicht, wird der Termin übersprungen.
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { requireAdmin } from './auth.ts';
 import { audit } from './users.ts';
 import { backupStatus, createBackup } from './backup.ts';
+import { backupNeeded } from './backup-schedule.ts';
 import { applyRunning, getState, setState } from './mod-manager.ts';
 import { control, rcon, tellraw, wait } from './server-admin.ts';
 
@@ -71,7 +73,7 @@ async function tick(log: FastifyBaseLogger) {
     // Läuft gerade das stündliche Backup, darauf warten – danach ein eigenes ziehen
     while (backupStatus().running) await wait(2);
     try {
-      await createBackup('auto', 'Geplanter Neustart', log);
+      if (backupNeeded()) await createBackup('auto', 'Geplanter Neustart', log);
     } catch (err) {
       p.at = Date.now() + RETRY_MS;
       p.warned.clear();

@@ -46,6 +46,8 @@ services:
   api:
     build: ./api
     pull_policy: build            # bei jedem Deploy neu bauen, damit Code-Updates ankommen
+    # Niedrige CPU-Priorität: Backups (Packen der Welt) bremsen das Spiel nicht, nutzen aber freie Rechenzeit voll
+    cpu_shares: 256
     container_name: neo-api
     environment:
       TZ: Europe/Berlin

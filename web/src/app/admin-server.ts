@@ -24,6 +24,7 @@ export interface ServerInfo {
 export interface RankingSettings { enabled: boolean; resetAt: string | null }
 
 export interface AutoRestart { enabled: boolean; time: string; nextAt: string | null }
+export interface BackupSettings { onlyWithPlayers: boolean }
 
 @Injectable({ providedIn: 'root' })
 export class ServerService {
@@ -39,6 +40,8 @@ export class ServerService {
   resetRanking() { return firstValueFrom(this.http.post<RankingSettings>('/api/rankings/reset', {})); }
   autoRestart() { return firstValueFrom(this.http.get<AutoRestart>('/api/server/auto-restart')); }
   setAutoRestart(body: Partial<AutoRestart>) { return firstValueFrom(this.http.post<AutoRestart>('/api/server/auto-restart', body)); }
+  backupSettings() { return firstValueFrom(this.http.get<BackupSettings>('/api/backups/settings')); }
+  setBackupSettings(body: BackupSettings) { return firstValueFrom(this.http.post<BackupSettings>('/api/backups/settings', body)); }
   stop() { return firstValueFrom(this.http.post('/api/server/stop', {})); }
   start() { return firstValueFrom(this.http.post('/api/server/start', {})); }
 }
@@ -195,6 +198,24 @@ const POLL_MS = 5_000;
           </div>
         }
 
+        @if (backupSettings(); as b) {
+          <div class="setting">
+            <label class="switch-row">
+              <span class="switch">
+                <input type="checkbox" [checked]="b.onlyWithPlayers" (change)="toggleBackupActivity($any($event.target).checked)" [disabled]="busy()" />
+                <span></span>
+              </span>
+              <span class="switch-text">
+                <strong>Backups nur bei Spieleraktivität</strong>
+                <span class="hint">
+                  @if (b.onlyWithPlayers) { Stündlich, solange gespielt wird<span class="sep" aria-hidden="true"></span>5 Min. nachdem der Letzte geht }
+                  @else { Stündlich, auch wenn niemand online ist }
+                </span>
+              </span>
+            </label>
+          </div>
+        }
+
         @if (ranking(); as r) {
           <div class="setting">
             <label class="switch-row">
@@ -249,6 +270,7 @@ export class AdminServer {
   protected consoleOpen = signal(false);
   protected autoRestart = signal<AutoRestart | undefined>(undefined);
   protected ranking = signal<RankingSettings | undefined>(undefined);
+  protected backupSettings = signal<BackupSettings | undefined>(undefined);
   protected error = signal('');
   protected notice = signal('');
   protected copied = signal('');
@@ -287,10 +309,13 @@ export class AdminServer {
 
   private async load() {
     try {
-      const [info, autoRestart, ranking] = await Promise.all([this.api.info(), this.api.autoRestart(), this.api.ranking()]);
+      const [info, autoRestart, ranking, backupSettings] = await Promise.all([
+        this.api.info(), this.api.autoRestart(), this.api.ranking(), this.api.backupSettings(),
+      ]);
       this.info.set(info);
       this.autoRestart.set(autoRestart);
       this.ranking.set(ranking);
+      this.backupSettings.set(backupSettings);
     } catch (err) {
       this.error.set(errorMessage(err));
     }
@@ -304,6 +329,13 @@ export class AdminServer {
 
   toggleRanking(enabled: boolean) {
     this.run(async () => this.ranking.set(await this.api.setRanking(enabled)), enabled ? 'Ranglisten werden angezeigt.' : 'Ranglisten sind ausgeblendet.');
+  }
+
+  toggleBackupActivity(onlyWithPlayers: boolean) {
+    this.run(
+      async () => this.backupSettings.set(await this.api.setBackupSettings({ onlyWithPlayers })),
+      onlyWithPlayers ? 'Backups nur noch, wenn gespielt wird.' : 'Backups wieder stündlich, auch ohne Spieler.',
+    );
   }
 
   resetRanking() {
