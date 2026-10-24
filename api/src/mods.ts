@@ -2,6 +2,7 @@
 // gibt es Updates, Mod-Suche, und laufen die Mods schon auf einer neueren Minecraft-Version (Upgrade-Check)?
 import type { FastifyInstance } from 'fastify';
 import { requireAdmin } from './auth.ts';
+import { nextRestartAt, settings as restartSettings } from './auto-restart.ts';
 import {
   cached,
   gameVersionTags,
@@ -54,6 +55,8 @@ async function overview(fresh: boolean) {
     },
     loader: { name: 'Fabric', version: install.loader, latest: latestLoader },
     ...(await managedOverview(game, fresh)),
+    /** geplanter Neustart – Mod-Änderungen lassen sich dafür vormerken */
+    restart: { enabled: restartSettings().enabled, time: restartSettings().time, nextAt: nextRestartAt() },
     checkedAt: fresh ? new Date().toISOString() : remote.checkedAt,
   };
 }

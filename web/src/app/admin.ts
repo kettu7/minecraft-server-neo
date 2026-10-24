@@ -1,5 +1,7 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 import { KeyValuePipe } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 import { AuditEntry, AuthService, GameBan, Me, ROLE_LABELS, Role, WebsiteBan } from './auth';
 import { errorMessage, formatDate } from './projects.service';
 import { AdminNav } from './admin-nav';
@@ -24,7 +26,7 @@ import { ConsoleService, Operator } from './admin-console';
 
     <table class="materials users">
       <thead>
-        <tr><th>Benutzer</th><th>Minecraft</th><th class="toggle-col" title="Operator-Rechte im Spiel">OP</th><th>Rolle</th><th>Letzter Login</th><th class="num">Aktionen</th></tr>
+        <tr><th>Benutzer</th><th>Minecraft</th><th class="toggle-col" title="Operator-Rechte im Spiel">OP</th><th>Rolle</th><th>Letzter Login</th><th class="actions-col"><span class="sr-only">Aktionen</span></th></tr>
       </thead>
       <tbody>
         @for (u of users(); track u.id) {
@@ -75,18 +77,40 @@ import { ConsoleService, Operator } from './admin-console';
               }
             </td>
             <td class="hint">{{ u.lastLoginAt ? date(u.lastLoginAt) : '–' }}</td>
-            <td class="num">
-              @if (!u.isOwner && u.id !== auth.me()?.id) {
-                <div class="row-actions">
-                  <button class="secondary compact" (click)="remove(u)" [disabled]="busy()" title="Konto entfernen – Anmeldung danach wieder möglich">Löschen</button>
-                  <button class="danger compact" (click)="ban(u)" [disabled]="busy()" title="Dauerhaft sperren – auch im Spiel">Bannen</button>
-                </div>
+            <td class="actions-col">
+              @if (u.minecraftName || canManage(u)) {
+                <button type="button" class="icon-btn" (click)="openMenu(u, $event)" [disabled]="busy()"
+                        title="Weitere Aktionen" [attr.aria-label]="'Aktionen für ' + u.displayName" aria-haspopup="menu"
+                        [attr.aria-expanded]="menuFor()?.id === u.id">
+                  <app-icon name="dots" [size]="16" />
+                </button>
               }
             </td>
           </tr>
         }
       </tbody>
     </table>
+
+    <!-- Aktionsmenü je Benutzer: liegt im Top-Layer, damit die Tabelle es nicht abschneidet -->
+    <div #menu popover class="row-menu" role="menu" [style.top.px]="menuPos().top" [style.left.px]="menuPos().left"
+         (toggle)="$any($event).newState === 'closed' && menuFor.set(undefined)">
+      @if (menuFor(); as u) {
+        @if (u.minecraftName) {
+          <button type="button" role="menuitem" class="with-icon" (click)="resetStats(u)">
+            <app-icon name="chart-bar" [size]="16" />Statistiken zurücksetzen
+          </button>
+        }
+        @if (canManage(u)) {
+          @if (u.minecraftName) { <hr /> }
+          <button type="button" role="menuitem" class="with-icon" (click)="remove(u)" title="Konto entfernen – Anmeldung danach wieder möglich">
+            <app-icon name="trash" [size]="16" />Konto löschen
+          </button>
+          <button type="button" role="menuitem" class="with-icon danger-item" (click)="ban(u)" title="Dauerhaft sperren – auch im Spiel">
+            <app-icon name="ban" [size]="16" />Bannen
+          </button>
+        }
+      }
+    </div>
 
     <section class="card">
       <div class="project-head">
@@ -139,6 +163,8 @@ import { ConsoleService, Operator } from './admin-console';
       </ul>
     </details>
   `,
+  // Menü hängt fest am Bildschirm – beim Scrollen schließen statt wegdriften
+  host: { '(window:scroll)': 'menuFor() && closeMenu()' },
 })
 export class Admin {
   protected auth = inject(AuthService);
@@ -159,6 +185,41 @@ export class Admin {
   protected error = signal('');
   protected notice = signal('');
   protected pendingCount = computed(() => this.users().filter((u) => u.role === 'pending').length);
+  private http = inject(HttpClient);
+  protected menuFor = signal<Me | undefined>(undefined);
+  protected menuPos = signal({ top: 0, left: 0 });
+  private menu = viewChild.required<ElementRef<HTMLElement>>('menu');
+
+  /** Löschen und Bannen: nicht beim Inhaber und nicht bei sich selbst */
+  protected canManage = (u: Me) => !u.isOwner && u.id !== this.auth.me()?.id;
+
+  /** Menü rechtsbündig unter dem Punkte-Button öffnen; bei Platzmangel darüber */
+  openMenu(u: Me, event: MouseEvent) {
+    const el = this.menu().nativeElement;
+    if (this.menuFor()?.id === u.id) return el.hidePopover();
+    const r = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const width = 240, height = 150;
+    const top = r.bottom + 6 + height > innerHeight ? r.top - 6 - height : r.bottom + 6;
+    this.menuPos.set({ top, left: Math.max(8, r.right - width) });
+    this.menuFor.set(u);
+    el.showPopover();
+  }
+
+  protected closeMenu() {
+    this.menu().nativeElement.hidePopover();
+  }
+
+  resetStats(u: Me) {
+    this.closeMenu();
+    const name = u.minecraftName!;
+    if (!confirm(`Statistiken von ${name} zurücksetzen?
+
+${name} beginnt in allen Ranglisten wieder bei 0. Die Statistiken im Spiel bleiben erhalten.`)) return;
+    this.run(async () => {
+      await firstValueFrom(this.http.post('/api/rankings/reset-player', { name }));
+      return `Statistiken von ${name} zurückgesetzt – ab jetzt wird neu gezählt.`;
+    });
+  }
 
   constructor() {
     this.load();
@@ -218,6 +279,7 @@ export class Admin {
   }
 
   remove(u: Me) {
+    this.closeMenu();
     if (!confirm(`Konto von „${u.displayName}“ löschen?\n\nDer Minecraft-Name wird von der Whitelist entfernt. Die Person kann sich danach neu anmelden und wartet wieder auf Freischaltung.`)) return;
     this.run(async () => {
       await this.auth.deleteUser(u.id);
@@ -226,6 +288,7 @@ export class Admin {
   }
 
   ban(u: Me) {
+    this.closeMenu();
     const reason = prompt(`„${u.displayName}“ dauerhaft bannen?\n\nDas Konto wird entfernt, die Discord-Anmeldung gesperrt${u.minecraftName ? ` und ${u.minecraftName} im Spiel gebannt` : ''}.\n\nGrund (optional):`, '');
     if (reason === null) return;
     this.run(async () => {

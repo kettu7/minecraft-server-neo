@@ -22,7 +22,7 @@ import { registerModpack } from './modpack.ts';
 import { contentDisposition } from './download-name.ts';
 import { audit } from './users.ts';
 import {
-  backupStatus, createBackup, deleteBackup, listBackups, setPinned, worldArchivePath,
+  backupStatus, bundleStream, createBackup, deleteBackup, listBackups, setPinned, worldArchivePath,
 } from './backup.ts';
 import { refresh, refreshStatus, startScheduler, type RefreshReport } from './refresh.ts';
 import {
@@ -259,6 +259,19 @@ app.delete<{ Params: { id: string } }>('/api/backups/:id', async (req, reply) =>
   if (!(await deleteBackup(req.params.id))) return reply.code(404).send({ error: 'Backup nicht gefunden.' });
   audit(req.user!.id, 'backup gelöscht', req.params.id);
   return reply.code(204).send();
+});
+
+// Mehrere Backups auf einmal: ein tar mit den einzelnen Welt-Archiven
+app.get<{ Querystring: { ids?: string } }>('/api/backups/download', async (req, reply) => {
+  if (!requireAdmin(req, reply)) return;
+  const bundle = await bundleStream((req.query.ids ?? '').split(',').slice(0, 100));
+  if (!bundle) return reply.code(404).send({ error: 'Keine Backups gefunden.' });
+  audit(req.user!.id, 'backups heruntergeladen', bundle.ids.join(', ').slice(0, 500));
+  const name = `neo-backups-${bundle.ids.length}-${new Date().toISOString().slice(0, 10)}.tar`;
+  return reply
+    .header('Content-Type', 'application/x-tar')
+    .header('Content-Disposition', `attachment; filename="${name}"`)
+    .send(bundle.stream);
 });
 
 app.get<{ Params: { id: string } }>('/api/backups/:id/download', async (req, reply) => {

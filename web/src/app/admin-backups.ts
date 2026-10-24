@@ -100,10 +100,42 @@ const POLL_MS = 15_000;
         </button>
       </header>
 
+      @if (selected().size) {
+        <div class="bulk-bar" role="toolbar" aria-label="Ausgewählte Backups">
+          <strong>{{ selected().size }} ausgewählt</strong>
+          <span class="hint">{{ size(selectedBytes()) }}</span>
+          <div class="bulk-actions">
+            <a class="button-link compact with-icon" [href]="bundleUrl()" download (click)="afterDownload()">
+              <app-icon name="download" [size]="15" />Herunterladen
+            </a>
+            @if (selectedList().some((b) => !b.pinned)) {
+              <button type="button" class="secondary compact with-icon" (click)="pinSelected(true)" [disabled]="busy()">
+                <app-icon name="pin" [size]="15" />Anpinnen
+              </button>
+            }
+            @if (selectedList().some((b) => b.pinned)) {
+              <button type="button" class="secondary compact with-icon" (click)="pinSelected(false)" [disabled]="busy()">
+                <app-icon name="pinned-off" [size]="15" />Pin lösen
+              </button>
+            }
+            <button type="button" class="danger compact with-icon" (click)="removeSelected()" [disabled]="busy()">
+              <app-icon name="trash" [size]="15" />Löschen
+            </button>
+            <button type="button" class="icon-btn" (click)="clearSelection()" title="Auswahl aufheben" aria-label="Auswahl aufheben">
+              <app-icon name="x" [size]="16" />
+            </button>
+          </div>
+        </div>
+      }
+
       <div class="mat-scroll">
         <table class="mat-table backup-table">
           <thead>
             <tr>
+              <th class="check-col">
+                <input type="checkbox" [checked]="allVisibleSelected()" [indeterminate]="someVisibleSelected()"
+                       (change)="toggleAll($any($event.target).checked)" [disabled]="!visible().length" aria-label="Alle sichtbaren auswählen" />
+              </th>
               <th>Backup</th>
               <th>Welt</th>
               <th class="status-col">Art</th>
@@ -114,7 +146,10 @@ const POLL_MS = 15_000;
           </thead>
           <tbody>
             @for (b of visible(); track b.id) {
-              <tr [class.pinned]="b.pinned">
+              <tr [class.pinned]="b.pinned" [class.selected]="selected().has(b.id)">
+                <td class="check-col">
+                  <input type="checkbox" [checked]="selected().has(b.id)" (change)="toggle(b.id)" [attr.aria-label]="'Backup vom ' + date(b.createdAt) + ' auswählen'" />
+                </td>
                 <td>
                   <div class="item-text">
                     <strong class="with-icon">
@@ -147,7 +182,7 @@ const POLL_MS = 15_000;
                 </td>
               </tr>
             } @empty {
-              <tr class="empty"><td colspan="6">{{ backups().length ? 'Keine Backups in dieser Ansicht.' : 'Noch keine Backups.' }}</td></tr>
+              <tr class="empty"><td colspan="7">{{ backups().length ? 'Keine Backups in dieser Ansicht.' : 'Noch keine Backups.' }}</td></tr>
             }
           </tbody>
         </table>
@@ -199,6 +234,57 @@ export class BackupsPanel {
     const f = this.filter();
     return this.backups().filter((b) => f === 'all' || (f === 'pinned' ? b.pinned : f === 'manual' ? this.isManual(b) : b.kind === f));
   });
+  /* ───── Mehrfachauswahl ───── */
+  protected selected = signal(new Set<string>());
+  protected selectedList = computed(() => this.backups().filter((b) => this.selected().has(b.id)));
+  protected selectedBytes = computed(() => this.selectedList().reduce((a, b) => a + b.totalBytes, 0));
+  protected allVisibleSelected = computed(() => this.visible().length > 0 && this.visible().every((b) => this.selected().has(b.id)));
+  protected someVisibleSelected = computed(() => !this.allVisibleSelected() && this.visible().some((b) => this.selected().has(b.id)));
+  protected bundleUrl = computed(() => '/api/backups/download?ids=' + this.selectedList().map((b) => b.id).join(','));
+
+  toggle(id: string) {
+    const next = new Set(this.selected());
+    if (!next.delete(id)) next.add(id);
+    this.selected.set(next);
+  }
+
+  /** Kopf-Checkbox: alle sichtbaren (gefilterten) an- bzw. abwählen */
+  toggleAll(on: boolean) {
+    const next = new Set(this.selected());
+    for (const b of this.visible()) on ? next.add(b.id) : next.delete(b.id);
+    this.selected.set(next);
+  }
+
+  clearSelection() {
+    this.selected.set(new Set());
+  }
+
+  afterDownload() {
+    const n = this.selected().size;
+    this.notice.set(`Download von ${n} ${n === 1 ? "Backup" : "Backups"} gestartet – eine .tar-Datei mit je einem Welt-Archiv.`);
+  }
+
+  pinSelected(pinned: boolean) {
+    const targets = this.selectedList().filter((b) => b.pinned !== pinned);
+    this.run(async () => {
+      for (const b of targets) await this.api.pin(b.id, pinned);
+      this.notice.set(`${targets.length} ${targets.length === 1 ? 'Backup' : 'Backups'} ${pinned ? 'angepinnt' : 'gelöst'}.`);
+    });
+  }
+
+  removeSelected() {
+    const list = this.selectedList();
+    const pinned = list.filter((b) => b.pinned).length;
+    if (!confirm(`${list.length} ${list.length === 1 ? 'Backup' : 'Backups'} endgültig löschen?${pinned ? `
+
+Darunter ${pinned} angepinnte.` : ''}`)) return;
+    this.run(async () => {
+      for (const b of list) await this.api.delete(b.id);
+      this.clearSelection();
+      this.notice.set(`${list.length} ${list.length === 1 ? 'Backup' : 'Backups'} gelöscht.`);
+    });
+  }
+
   protected menuFor = signal<Backup | undefined>(undefined);
   protected menuPos = signal({ top: 0, left: 0 });
   private menu = viewChild.required<ElementRef<HTMLElement>>('menu');
@@ -221,6 +307,8 @@ export class BackupsPanel {
       const { backups, status } = await this.api.list();
       this.backups.set(backups);
       this.status.set(status);
+      const ids = new Set(backups.map((b) => b.id));
+      if ([...this.selected()].some((id) => !ids.has(id))) this.selected.set(new Set([...this.selected()].filter((id) => ids.has(id))));
     } catch (err) {
       this.error.set(errorMessage(err));
     }
@@ -260,7 +348,7 @@ Vorher wird automatisch ein Sicherheits-Backup erstellt.`)) return;
     const el = this.menu().nativeElement;
     if (this.menuFor()?.id === b.id) return el.hidePopover();
     const r = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    const width = 220, height = 150;
+    const width = 240, height = 150;
     const top = r.bottom + 6 + height > innerHeight ? r.top - 6 - height : r.bottom + 6;
     this.menuPos.set({ top, left: Math.max(8, r.right - width) });
     this.menuFor.set(b);

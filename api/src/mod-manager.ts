@@ -321,6 +321,40 @@ let job: ApplyJob | null = null;
 export const applyStatus = () => job ?? getState<ApplyJob>('last_apply') ?? null;
 export const applyRunning = () => !!job?.running;
 
+/* ───────────────────────── Beim geplanten Neustart übernehmen ───────────────────────── */
+
+/** Wer hat das Übernehmen beim nächsten geplanten Neustart vorgemerkt? */
+export interface ApplyAtRestart { by: string; userId: number | null; at: string }
+const APPLY_AT_RESTART = 'apply_at_restart';
+export const applyAtRestart = () => getState<ApplyAtRestart>(APPLY_AT_RESTART) ?? null;
+export const setApplyAtRestart = (value: ApplyAtRestart | null) => setState(APPLY_AT_RESTART, value);
+
+/** Was beim Übernehmen geprüft wird: null = ok, sonst Fehlertext */
+export function applyBlocker(): string | null {
+  const desired = listManaged();
+  const problems = missingDependencies(desired);
+  if (problems.length) return `Es fehlen benötigte Mods: ${problems.map((p) => `${p.mod} braucht ${p.needs}`).join('; ')}.`;
+  if (!pendingChanges(desired, appliedMods()).length) return 'Es gibt nichts zu übernehmen.';
+  return null;
+}
+
+/**
+ * Vom geplanten Neustart aufgerufen: vorgemerkte Änderungen übernehmen (Backup, Neustart, Prüfung).
+ * true = erledigt (Server ist neu gestartet), false = nichts zu tun – dann normal neu starten.
+ */
+export async function runScheduledApply(log: FastifyBaseLogger): Promise<boolean> {
+  const planned = applyAtRestart();
+  if (!planned || applyRunning() || !MODS_FILE) return false;
+  setApplyAtRestart(null);
+  const blocker = applyBlocker();
+  if (blocker) {
+    audit(planned.userId, 'geplante mod-änderung übersprungen', blocker);
+    return false;
+  }
+  await runApply({ id: planned.userId, displayName: `${planned.by} (geplanter Neustart)` }, log);
+  return true;
+}
+
 async function serverLogs(): Promise<string> {
   const body = (await control('GET', '/logs', 15_000).catch(() => ({ logs: '' }))) as { logs?: string };
   return (body.logs ?? '').slice(-6000);
@@ -338,7 +372,8 @@ async function waitHealthy(timeoutMs: number) {
   return false;
 }
 
-async function runApply(user: User, log: FastifyBaseLogger) {
+async function runApply(user: Pick<User, 'displayName'> & { id: number | null }, log: FastifyBaseLogger) {
+  setApplyAtRestart(null);
   const desired = listManaged();
   const previous = appliedMods();
   const changes = pendingChanges(desired, previous);
@@ -446,6 +481,7 @@ export async function managedOverview(game: string | null, fresh: boolean) {
     pending: pendingChanges(desired, applied),
     dependencyProblems: missingDependencies(desired),
     apply: applyStatus(),
+    applyAtRestart: applyAtRestart(),
     canApply: !!MODS_FILE,
   };
 }
@@ -586,6 +622,7 @@ export async function registerModManager(app: FastifyInstance) {
       const restore = db.prepare('UPDATE server_mods SET pack_mode = ? WHERE project_id = ?');
       for (const p of packModes) restore.run(p.pack_mode, p.project_id);
     });
+    setApplyAtRestart(null);
     audit(req.user!.id, 'mod-änderungen verworfen');
     return { ok: true };
   });
@@ -594,12 +631,8 @@ export async function registerModManager(app: FastifyInstance) {
   app.post('/api/mods/apply', async (req, reply) => {
     if (!requireAdmin(req, reply) || !guard(reply)) return;
     if (!MODS_FILE) return reply.code(400).send({ error: 'Übernehmen geht nur im Docker-Betrieb.' });
-    const desired = listManaged();
-    const problems = missingDependencies(desired);
-    if (problems.length) {
-      return reply.code(400).send({ error: `Es fehlen benötigte Mods: ${problems.map((p) => `${p.mod} braucht ${p.needs}`).join('; ')}.` });
-    }
-    if (!pendingChanges(desired, appliedMods()).length) return reply.code(400).send({ error: 'Es gibt nichts zu übernehmen.' });
+    const blocker = applyBlocker();
+    if (blocker) return reply.code(400).send({ error: blocker });
     void runApply(req.user!, req.log);
     return { ok: true };
   });

@@ -1,13 +1,16 @@
 // Geplanter Neustart: jeden Tag zur festen Uhrzeit (Zeitzone des Containers, TZ=Europe/Berlin).
 // 15, 5 und 1 Minute vorher wird im Chat angekündigt, direkt davor ein Backup gezogen –
 // bei „Backups nur bei Spieleraktivität“ nur, wenn seit dem letzten Backup jemand gespielt hat.
+// Sind Mod-Änderungen „beim Neustart“ vorgemerkt, übernimmt der Neustart sie (mit eigenem Backup und Prüfung).
 // Läuft der Server zur geplanten Zeit nicht, wird der Termin übersprungen.
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { requireAdmin } from './auth.ts';
 import { audit } from './users.ts';
 import { backupStatus, createBackup } from './backup.ts';
 import { backupNeeded } from './backup-schedule.ts';
-import { applyRunning, getState, setState } from './mod-manager.ts';
+import {
+  applyAtRestart, applyBlocker, applyRunning, getState, runScheduledApply, setApplyAtRestart, setState,
+} from './mod-manager.ts';
 import { control, rcon, tellraw, wait } from './server-admin.ts';
 
 export interface AutoRestartSettings { enabled: boolean; time: string }
@@ -56,7 +59,8 @@ async function tick(log: FastifyBaseLogger) {
   for (const m of WARNINGS) {
     if (minutesLeft <= m && minutesLeft > m - 1 && !p.warned.has(m)) {
       p.warned.add(m);
-      await rcon(tellraw(`Geplanter Neustart in ${m} ${m === 1 ? 'Minute' : 'Minuten'}.`)).catch(() => undefined);
+      const mods = applyAtRestart() ? ' mit Mod-Updates' : '';
+      await rcon(tellraw(`Geplanter Neustart${mods} in ${m} ${m === 1 ? 'Minute' : 'Minuten'}.`)).catch(() => undefined);
     }
   }
   if (minutesLeft > 0) return;
@@ -70,6 +74,16 @@ async function tick(log: FastifyBaseLogger) {
 
   restarting = true;
   try {
+    // Vorgemerkte Mod-Änderungen: das Übernehmen sichert, startet neu und prüft selbst
+    if (applyAtRestart()) {
+      while (backupStatus().running) await wait(2);
+      if (await runScheduledApply(log)) {
+        audit(null, 'geplanter neustart', `täglich ${s.time} Uhr, mit Mod-Änderungen`);
+        plan = null;
+        return;
+      }
+    }
+
     // Läuft gerade das stündliche Backup, darauf warten – danach ein eigenes ziehen
     while (backupStatus().running) await wait(2);
     try {
@@ -106,8 +120,28 @@ export async function registerAutoRestart(app: FastifyInstance) {
     const next: AutoRestartSettings = { enabled: req.body?.enabled === true, time };
     setState(KEY, next);
     plan = null;
+    // Ohne geplanten Neustart gibt es keinen Termin für vorgemerkte Mod-Änderungen
+    if (!next.enabled) setApplyAtRestart(null);
     audit(req.user!.id, next.enabled ? 'geplanter neustart an' : 'geplanter neustart aus', `täglich ${time} Uhr`);
     return { ...next, nextAt: nextRestartAt() };
+  });
+
+  // Mod-Änderungen beim nächsten geplanten Neustart übernehmen (an) bzw. Vormerkung zurücknehmen (aus)
+  app.post<{ Body: { enabled?: boolean } }>('/api/mods/apply-at-restart', async (req, reply) => {
+    if (!requireAdmin(req, reply)) return;
+    if (req.body?.enabled !== true) {
+      setApplyAtRestart(null);
+      audit(req.user!.id, 'mod-änderungen nicht mehr beim neustart');
+      return { applyAtRestart: null };
+    }
+    if (!settings().enabled) return reply.code(400).send({ error: 'Der geplante Neustart ist aus – unter Admin → Server einschalten.' });
+    if (applyRunning()) return reply.code(409).send({ error: 'Gerade werden Änderungen übernommen – bitte kurz warten.' });
+    const blocker = applyBlocker();
+    if (blocker) return reply.code(400).send({ error: blocker });
+    const value = { by: req.user!.displayName, userId: req.user!.id, at: new Date().toISOString() };
+    setApplyAtRestart(value);
+    audit(req.user!.id, 'mod-änderungen beim neustart', `täglich ${settings().time} Uhr`);
+    return { applyAtRestart: value };
   });
 
   if (process.env.CONTROL_URL) setInterval(() => tick(app.log).catch(() => undefined), CHECK_MS).unref();

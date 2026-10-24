@@ -127,9 +127,8 @@ const SUGGESTIONS: Record<PackKind, string[]> = {
                   </td>
                   <td>
                     @if (r.locked) {
-                      <span class="pill" [attr.data-state]="r.mode === 'required' ? 'covered' : 'off'"
-                            [title]="r.mode === 'required' ? 'Spieler brauchen den Mod, um auf den Server zu kommen.' : 'Läuft nur auf dem Server.'">
-                        <i></i>@if (r.mode === 'required') { Pflicht<span class="sep" aria-hidden="true"></span>nötig } @else { Nur Server }
+                      <span class="pill" data-state="covered" title="Spieler brauchen den Mod, um auf den Server zu kommen.">
+                        <i></i>Pflicht<span class="sep" aria-hidden="true"></span>wird benötigt
                       </span>
                     } @else {
                       <div class="segmented small" role="group" [attr.aria-label]="r.title + ' im Pack'">
@@ -159,6 +158,13 @@ const SUGGESTIONS: Record<PackKind, string[]> = {
           </table>
         </div>
       </section>
+      @if (serverOnly()) {
+        <p class="hint small-text">
+          {{ serverOnly() }} {{ serverOnly() === 1 ? 'Server-Mod braucht' : 'Server-Mods brauchen' }} die Spieler nicht zusätzlich
+          {{ showServerOnly() ? '(stehen auf „Aus“).' : 'und ' + (serverOnly() === 1 ? 'ist' : 'sind') + ' ausgeblendet.' }}
+          <button type="button" class="link" (click)="showServerOnly.set(!showServerOnly())">{{ showServerOnly() ? 'Ausblenden' : 'Anzeigen' }}</button>
+        </p>
+      }
     } @else if (!error()) {
       <p class="hint">Lade …</p>
     }
@@ -249,8 +255,17 @@ export class AdminModpack {
   private searchInput = viewChild.required<ElementRef<HTMLInputElement>>('searchInput');
 
   protected suggestions = computed(() => SUGGESTIONS[this.searchKind()]);
+  /**
+   * Server-Mods, die Spieler nicht zusätzlich brauchen – standardmäßig ausgeblendet. Nur wenn sie auf „Aus“ stehen
+   * UND auch nicht als Abhängigkeit eines Client-Mods ins Pack kommen (z. B. Fabric API für Sodium-Addons).
+   */
+  private isServerOnly = (r: PackRow) => r.source === 'server' && !r.locked && this.current(r) === 'excluded' && r.mode === 'excluded';
+  protected showServerOnly = signal(false);
+  private rows = computed(() => (this.data()?.rows ?? []).filter((r) => this.showServerOnly() || !this.isServerOnly(r)));
+  protected serverOnly = computed(() => (this.data()?.rows ?? []).filter(this.isServerOnly).length);
+
   protected filters = computed(() => {
-    const rows = this.data()?.rows ?? [];
+    const rows = this.rows();
     return [
       { key: 'all' as const, label: 'Alle', count: rows.length },
       { key: 'in' as const, label: 'Im Pack', count: rows.filter((r) => r.mode !== 'excluded').length },
@@ -266,7 +281,7 @@ export class AdminModpack {
   protected sort = signal<{ key: SortKey; dir: 1 | -1 }>(readSort());
 
   protected visible = computed(() => {
-    const rows = this.data()?.rows ?? [];
+    const rows = this.rows();
     const f = this.filter();
     const filtered = f === 'all' ? rows : rows.filter((r) => (f === 'in') === (r.mode !== 'excluded'));
     const { key, dir } = this.sort();

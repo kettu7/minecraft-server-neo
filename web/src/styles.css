@@ -1432,13 +1432,13 @@ details.card > app-backups-panel > .small-text { color: var(--faint); font-size:
 
 /* Zeilen-Aktionsmenü (natives Popover im Top-Layer, Position per JS) */
 .row-menu {
-  position: fixed; inset: auto; margin: 0; width: 220px; padding: .35rem; color: var(--text);
+  position: fixed; inset: auto; margin: 0; width: 15rem; padding: .35rem; color: var(--text);
   border-radius: 12px; border: 1px solid var(--glass-border); background: rgba(14, 20, 36, .97);
   box-shadow: inset 0 1px 0 var(--glass-highlight), 0 24px 48px -16px rgba(0, 0, 0, .9);
 }
 .row-menu:popover-open { display: grid; gap: 2px; animation: row-menu-in .16s cubic-bezier(.2, .8, .2, 1); }
 .row-menu button {
-  justify-content: flex-start; width: 100%; padding: .6rem .7rem; border-radius: 8px; gap: .65rem;
+  justify-content: flex-start; width: 100%; padding: .6rem .7rem; border-radius: 8px; gap: .65rem; white-space: nowrap; text-align: left;
   font: 500 .88rem/1.2 var(--font-body); letter-spacing: 0; text-transform: none; color: var(--text);
   background: transparent; border: 0; box-shadow: none;
 }
@@ -1827,3 +1827,25 @@ app-new-world { display: grid; }
 .new-world-steps b { color: #cfe6ff; font-weight: 600; }
 @media (max-width: 640px) { .new-world-form { grid-template-columns: 1fr; } }
 .backup-world { white-space: nowrap; font-size: .88rem; }
+
+/* Backups: Mehrfachauswahl */
+.check-col { width: 2.75rem; padding-right: 0 !important; }
+.check-col input { display: block; margin: 0; cursor: pointer; }
+.backup-table { min-width: 660px; }
+.mat-table tbody tr.selected { background: var(--accent-soft); }
+.bulk-bar {
+  display: flex; align-items: center; gap: .4rem 1rem; flex-wrap: wrap; padding: .6rem 1rem;
+  border-bottom: 1px solid var(--line); background: rgba(95, 227, 92, .06);
+}
+.bulk-bar .hint { margin-right: auto; }
+.bulk-actions { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.button-link.compact { padding: .5rem .75rem; }
+.bulk-actions .icon-btn { width: 2.25rem; height: 2.25rem; padding: 0; border-radius: .55rem; }
+
+/* Servermods: beim geplanten Neustart übernehmen */
+.scheduled-note { gap: .5rem; margin: 0; font-size: .86rem; color: var(--text); align-items: flex-start; }
+.scheduled-note .icon { color: var(--accent); margin-top: .1rem; flex-shrink: 0; }
+.apply-actions { flex-wrap: wrap; justify-content: flex-end; }
+
+/* Benutzer: Aktionsmenü */
+.users .actions-col { width: 3rem; text-align: right; }

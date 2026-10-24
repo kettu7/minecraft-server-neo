@@ -67,6 +67,9 @@ export interface ModsOverview {
   pending: ModChange[];
   dependencyProblems: Array<{ mod: string; needs: string }>;
   apply: ApplyJob | null;
+  /** vorgemerkt: beim nächsten geplanten Neustart übernehmen */
+  applyAtRestart: { by: string; at: string } | null;
+  restart: { enabled: boolean; time: string; nextAt: string | null };
   canApply: boolean;
   checkedAt: string;
 }
@@ -117,6 +120,9 @@ export class ModsService {
   }
   apply() {
     return firstValueFrom(this.http.post('/api/mods/apply', {}));
+  }
+  applyAtRestart(enabled: boolean) {
+    return firstValueFrom(this.http.post('/api/mods/apply-at-restart', { enabled }));
   }
   upgrade(version: string) {
     return firstValueFrom(this.http.get<UpgradeCheck>('/api/mods/upgrade', { params: { version } }));
@@ -209,6 +215,18 @@ const CHANGE_LABELS: Record<ModChange['kind'], string> = {
                 </span>
               }
             </div>
+            @if (d.applyAtRestart) {
+              <p class="scheduled-note with-icon">
+                <app-icon name="clock" [size]="15" />
+                <span>
+                  Wird beim geplanten Neustart {{ d.restart.nextAt ? when(d.restart.nextAt) : '' }} übernommen
+                  <span class="hint"><span class="sep" aria-hidden="true"></span>vorgemerkt von {{ d.applyAtRestart.by }}</span>
+                </span>
+              </p>
+            }
+            @else if (!d.restart.enabled) {
+              <p class="hint small-text">Tipp: Mit dem geplanten Neustart (Admin → Server → Einstellungen) lassen sich Änderungen auch nachts übernehmen.</p>
+            }
             @if (d.dependencyProblems.length) {
               <p class="error small">
                 Es fehlen benötigte Mods:
@@ -218,7 +236,16 @@ const CHANGE_LABELS: Record<ModChange['kind'], string> = {
           </div>
           <div class="apply-actions">
             <button type="button" class="secondary" (click)="discard()" [disabled]="busy()">Verwerfen</button>
-            <button type="button" (click)="apply()" [disabled]="busy() || !d.canApply || d.dependencyProblems.length > 0">Übernehmen</button>
+            @if (d.applyAtRestart) {
+              <button type="button" class="secondary" (click)="setApplyAtRestart(false)" [disabled]="busy()">Nicht beim Neustart</button>
+            } @else {
+              <button type="button" class="secondary with-icon" (click)="setApplyAtRestart(true)"
+                      [disabled]="busy() || !d.canApply || !d.restart.enabled || d.dependencyProblems.length > 0"
+                      [title]="d.restart.enabled ? 'Mit Backup beim nächsten geplanten Neustart übernehmen' : 'Geplanter Neustart ist aus (Admin → Server → Einstellungen)'">
+                <app-icon name="clock" [size]="15" />Beim Neustart {{ d.restart.time }} Uhr
+              </button>
+            }
+            <button type="button" (click)="apply()" [disabled]="busy() || !d.canApply || d.dependencyProblems.length > 0">Jetzt übernehmen</button>
           </div>
         </section>
       }
@@ -621,6 +648,23 @@ export class AdminMods {
     if (!confirm(`${n} ${n === 1 ? 'Änderung' : 'Änderungen'} übernehmen?\n\n1. Backup wird erstellt\n2. Spieler werden 10 Sekunden vorher gewarnt\n3. Server startet neu und lädt die Mods\n\nDauert meist 1–2 Minuten.`)) return;
     await this.run(() => this.api.apply(), '');
     this.dismissedResult.set(false);
+  }
+
+  setApplyAtRestart(enabled: boolean) {
+    const d = this.data();
+    return this.run(() => this.api.applyAtRestart(enabled), enabled
+      ? `Vorgemerkt: Die Änderungen werden beim geplanten Neustart ${d?.restart.nextAt ? this.when(d.restart.nextAt) : ''} übernommen – mit Backup vorher.`
+      : 'Vormerkung zurückgenommen.');
+  }
+
+  /** „heute um 05:00“ / „morgen um 05:00“ / „am 26.10. um 05:00“ */
+  protected when(iso: string) {
+    const d = new Date(iso);
+    const day = (offset: number) => { const x = new Date(); x.setDate(x.getDate() + offset); return x.toDateString(); };
+    const time = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    if (d.toDateString() === day(0)) return `heute um ${time} Uhr`;
+    if (d.toDateString() === day(1)) return `morgen um ${time} Uhr`;
+    return `am ${d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })} um ${time} Uhr`;
   }
 
   private async run(action: () => Promise<unknown>, success: string) {

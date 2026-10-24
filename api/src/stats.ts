@@ -1,6 +1,7 @@
 // Rangliste fürs Dashboard aus den Spieler-Statistiken von Minecraft (world/players/stats/<uuid>.json).
 // Minecraft schreibt die Dateien beim Autosave (alle 5 Min.) und beim Ausloggen.
-// „Zurücksetzen“ löscht nichts: es merkt sich die aktuellen Werte als Nullpunkt und zieht sie künftig ab.
+// „Zurücksetzen“ löscht nichts: es merkt sich die aktuellen Werte als Nullpunkt und zieht sie künftig ab –
+// für alle (Einstellungen) oder für einzelne Spieler (Benutzer → Menü).
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
@@ -56,7 +57,8 @@ export const CATEGORIES: Category[] = [
 ];
 
 export interface RankingSettings { enabled: boolean }
-interface Baseline { resetAt: string; values: Record<string, Record<string, number>> }
+/** resetAt: letztes Zurücksetzen für alle (null = nur einzelne Spieler zurückgesetzt) */
+interface Baseline { resetAt: string | null; values: Record<string, Record<string, number>> }
 const SETTINGS = 'ranking';
 const BASELINE = 'ranking_baseline';
 /** Beispiel-Spieler zum Ansehen der Ranglisten; „Zurücksetzen“ entfernt sie */
@@ -170,6 +172,19 @@ export async function registerStats(app: FastifyInstance) {
     setState(SETTINGS, { enabled });
     audit(req.user!.id, enabled ? 'rangliste eingeblendet' : 'rangliste ausgeblendet');
     return { ...rankingSettings(), resetAt: getState<Baseline>(BASELINE)?.resetAt ?? null };
+  });
+
+  // Nullpunkt für einen Spieler: seine Werte zählen ab jetzt neu, alle anderen bleiben
+  app.post<{ Body: { name?: string } }>('/api/rankings/reset-player', async (req, reply) => {
+    if (!requireAdmin(req, reply)) return;
+    const name = (req.body?.name ?? '').toLowerCase();
+    const player = name ? (await readPlayers()).find((p) => p.name.toLowerCase() === name) : undefined;
+    if (!player) return reply.code(404).send({ error: `Für ${req.body?.name ?? 'diesen Spieler'} gibt es noch keine Statistiken.` });
+    const current = getState<Baseline>(BASELINE);
+    setState(BASELINE, { resetAt: current?.resetAt ?? null, values: { ...current?.values, [player.uuid]: player.values } });
+    cached = null;
+    audit(req.user!.id, 'statistik zurückgesetzt', player.name);
+    return { ok: true };
   });
 
   // Nullpunkt setzen: alle Ranglisten beginnen bei 0, die Statistiken im Spiel bleiben unberührt

@@ -127,6 +127,23 @@ export function worldArchivePath(id: string): string | undefined {
   return BACKUP_ID.test(id) ? join(BACKUP_DIR, id, WORLD_FILE) : undefined;
 }
 
+/**
+ * Mehrere Welt-Archive in einem Download: unkomprimiertes tar (die Archive sind schon gepackt),
+ * darin neo-welt-<id>.tar.gz je Backup. Nur vorhandene, gültige IDs.
+ */
+export async function bundleStream(ids: string[]) {
+  const valid: string[] = [];
+  for (const id of new Set(ids)) {
+    if (BACKUP_ID.test(id) && await stat(join(BACKUP_DIR, id, WORLD_FILE)).then(() => true, () => false)) valid.push(id);
+  }
+  if (!valid.length) return null;
+  const tar = spawn('tar', [
+    'cf', '-', '-C', BACKUP_DIR, '--transform', String.raw`s#^\([^/]*\)/world\.tar\.gz$#neo-welt-\1.tar.gz#`,
+    ...valid.map((id) => `${id}/${WORLD_FILE}`),
+  ]);
+  return { ids: valid, stream: tar.stdout };
+}
+
 /* ───────────────────────── Sichern ───────────────────────── */
 
 const pad = (n: number) => String(n).padStart(2, '0');
