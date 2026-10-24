@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { notificationsFor, notify } from '../src/notifications.ts';
-import { describePackChange, type PackSnapshot } from '../src/modpack.ts';
+import { changesBetween, describePackChange, type PackSnapshot } from '../src/modpack.ts';
 
 const snap = (files: Array<[string, string, string]>, minecraft = '26.3'): PackSnapshot => ({
   hash: files.map((f) => f.join()).join(';'), minecraft, files: files.map(([id, title, sha1]) => ({ id, title, sha1 })),
@@ -40,4 +40,14 @@ test('Benachrichtigungen: Zielgruppe und Anmeldedatum', () => {
   // Konto erst vor 2 Tagen angelegt: die 10 Tage alte Meldung sieht es nicht
   const twoDaysAgo = new Date(Date.now() - 2 * 86400_000).toISOString().slice(0, 19).replace('T', ' ');
   assert.deepEqual(seen('player', twoDaysAgo), [`${marker} alle`]);
+});
+
+test('Modpack-Seite: Neu, Aktualisiert und Entfernt gegenüber dem vorigen Stand', () => {
+  const before: PackSnapshot = { ...snap([['a', 'Sodium', '1'], ['c', 'Chunky', '1']]), version: '1.4' };
+  before.files[1].mode = 'optional';
+  const after = snap([['a', 'Sodium', '2'], ['d', 'Litematica', '1']]);
+  assert.deepEqual(changesBetween(before, after), {
+    since: '1.4', added: ['d'], updated: ['a'], removed: [{ title: 'Chunky', mode: 'optional', kind: 'mod' }],
+  });
+  assert.deepEqual(changesBetween(undefined, after).added, []);
 });

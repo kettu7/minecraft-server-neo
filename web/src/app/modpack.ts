@@ -2,6 +2,7 @@ import { Component, Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { errorMessage, formatDate } from './projects.service';
+import { Icon } from './icon';
 
 export type PackKind = 'mod' | 'resourcepack' | 'shader';
 export type PackMode = 'required' | 'optional' | 'excluded';
@@ -26,6 +27,13 @@ export interface Modpack {
   loader: string;
   size: number;
   contents: PackContent[];
+  /** Änderungen mit dem letzten Update – bleiben bis zum nächsten stehen */
+  changes: {
+    since: string | null;
+    added: string[];
+    updated: string[];
+    removed: Array<{ title: string; mode: 'required' | 'optional'; kind: PackKind }>;
+  };
   problems: string[];
 }
 
@@ -103,6 +111,7 @@ const SEEN_KEY = 'neo.modpackVersion';
 /** Seite für Spieler: Modpack herunterladen und installieren */
 @Component({
   selector: 'app-modpack',
+  imports: [Icon],
   template: `
     <header class="page-head">
       <span class="eyebrow">Für Spieler</span>
@@ -160,7 +169,7 @@ const SEEN_KEY = 'neo.modpackVersion';
       </section>
 
       @for (group of groups(); track group.key) {
-        @if (group.items.length) {
+        @if (group.items.length || group.removed.length) {
           <section class="card">
             <div class="project-head">
               <h3>{{ group.title }}</h3>
@@ -173,7 +182,12 @@ const SEEN_KEY = 'neo.modpackVersion';
                   @if (c.icon) { <img class="mod-icon" [src]="c.icon" alt="" loading="lazy" /> }
                   @else { <span class="mod-icon placeholder">?</span> }
                   <div class="item-text">
-                    <a class="mod-title" [href]="c.url" target="_blank" rel="noopener noreferrer">{{ c.title }}</a>
+                    <span class="title-row">
+                      <a class="mod-title" [href]="c.url" target="_blank" rel="noopener noreferrer">{{ c.title }}</a>
+                      @if (change(c.projectId); as ch) {
+                        <span class="change-badge" [attr.data-change]="ch" [title]="changeHint(ch)">{{ ch === 'new' ? 'Neu' : 'Aktualisiert' }}</span>
+                      }
+                    </span>
                     <span class="mod-desc">{{ c.description }}</span>
                     <span class="mod-deps">
                       <span class="kind-tag" [attr.data-kind]="c.kind">{{ kind(c.kind) }}</span>
@@ -181,6 +195,21 @@ const SEEN_KEY = 'neo.modpackVersion';
                       @if (c.fromServer) { <span class="sep" aria-hidden="true"></span><span>auch auf dem Server</span> }
                     </span>
                   </div>
+                </li>
+              }
+              @if (group.removed.length) {
+                <!-- Entfernt seit dem letzten Update: eine Kachel am Ende, Namen im Tooltip -->
+                <li class="removed-tile tip" tabindex="0" [attr.aria-describedby]="'removed-' + group.key">
+                  <span class="mod-icon removed-icon"><app-icon name="trash" [size]="20" /></span>
+                  <div class="item-text">
+                    <strong class="removed-title">{{ group.removed.length }} {{ removedNoun(group.removed) }} entfernt</strong>
+                    <span class="mod-desc">{{ removedSummary(group.removed) }}</span>
+                    <span class="mod-deps"><span>nicht mehr dabei seit Version {{ p.version }}</span></span>
+                  </div>
+                  <span class="tip-box" role="tooltip" [id]="'removed-' + group.key">
+                    <span class="tip-title">Mit dem letzten Update entfernt:</span>
+                    @for (r of group.removed; track r.title) { <span class="tip-item">{{ r.title }}</span> }
+                  </span>
                 </li>
               }
             </ul>
@@ -204,10 +233,39 @@ export class ModpackPage {
     const seen = this.seen();
     return !!seen && seen !== this.pack()?.version;
   });
-  protected groups = computed(() => [
-    { key: 'required', title: 'Pflicht', hint: 'Wird immer installiert – ohne diese Mods geht es nicht oder es fehlt Wichtiges.', items: this.required() },
-    { key: 'optional', title: 'Optional', hint: 'Nette Extras. Kannst du in der Instanz ausschalten, z. B. Shader auf schwächeren PCs.', items: this.optional() },
-  ]);
+  protected groups = computed(() => {
+    const removed = this.pack()?.changes?.removed ?? [];
+    return [
+      { key: 'required', title: 'Pflicht', hint: 'Wird immer installiert – ohne diese Mods geht es nicht oder es fehlt Wichtiges.',
+        items: this.required(), removed: removed.filter((r) => r.mode === 'required') },
+      { key: 'optional', title: 'Optional', hint: 'Nette Extras. Kannst du in der Instanz ausschalten, z. B. Shader auf schwächeren PCs.',
+        items: this.optional(), removed: removed.filter((r) => r.mode === 'optional') },
+    ];
+  });
+  private added = computed(() => new Set(this.pack()?.changes?.added ?? []));
+  private updated = computed(() => new Set(this.pack()?.changes?.updated ?? []));
+
+  /** „Neu“ oder „Aktualisiert“ seit dem letzten Update */
+  protected change(id: string): 'new' | 'updated' | null {
+    return this.added().has(id) ? 'new' : this.updated().has(id) ? 'updated' : null;
+  }
+
+  protected changeHint(ch: 'new' | 'updated') {
+    const since = this.pack()?.changes?.since;
+    const verb = ch === 'new' ? 'Neu dabei' : 'Neue Version';
+    return since ? `${verb} seit Version ${this.pack()!.version} (vorher ${since})` : `${verb} mit dem letzten Update`;
+  }
+
+  protected removedNoun(list: Array<{ kind: PackKind }>) {
+    const mods = list.every((r) => r.kind === 'mod');
+    return list.length === 1 ? (mods ? 'Mod' : 'Inhalt') : (mods ? 'Mods' : 'Inhalte');
+  }
+
+  /** „Chunky, Lithium“ bzw. „Chunky, Lithium und 3 weitere“ – vollständige Liste im Tooltip */
+  protected removedSummary(list: Array<{ title: string }>) {
+    const names = list.slice(0, 2).map((r) => r.title).join(', ');
+    return list.length > 2 ? `${names} und ${list.length - 2} weitere` : names;
+  }
 
   constructor() {
     this.load();

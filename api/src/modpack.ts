@@ -277,8 +277,16 @@ async function packInfo() {
 /* ───────────────────────── Änderungen melden ───────────────────────── */
 
 /** Stand des Packs, wie er zuletzt an die Spieler gemeldet wurde */
-export interface PackSnapshot { hash: string; minecraft: string; files: Array<{ id: string; title: string; sha1: string }> }
+export interface PackSnapshot {
+  hash: string;
+  minecraft: string;
+  /** Pack-Version zu diesem Stand (ältere Stände haben keine) */
+  version?: string;
+  files: Array<{ id: string; title: string; sha1: string; mode?: 'required' | 'optional'; kind?: PackKind }>;
+}
 const NOTIFIED = 'pack_notified';
+/** der gemeldete Stand davor – daraus ergeben sich „Neu“, „Aktualisiert“ und „Entfernt“ auf der Modpack-Seite */
+const PREVIOUS = 'pack_previous';
 const PENDING = 'pack_pending';
 /** so lange muss das Pack unverändert bleiben, bevor gemeldet wird – mehrere Klicks im Admin ergeben eine Meldung */
 export const PACK_STABLE_MS = 5 * 60_000;
@@ -309,7 +317,8 @@ export async function checkPackChanges(log: FastifyBaseLogger, now = Date.now())
   const current: PackSnapshot = {
     hash: getState<{ hash: string }>('pack_version')!.hash,
     minecraft: p.minecraft,
-    files: p.files.map((f) => ({ id: f.projectId, title: titles.get(f.projectId) ?? f.projectId, sha1: f.file.sha1 })),
+    version: p.version,
+    files: p.files.map((f) => ({ id: f.projectId, title: titles.get(f.projectId) ?? f.projectId, sha1: f.file.sha1, mode: f.mode, kind: f.kind })),
   };
   const notified = getState<PackSnapshot>(NOTIFIED);
   // Erster Lauf: nur merken, nichts melden
@@ -329,9 +338,26 @@ export async function checkPackChanges(log: FastifyBaseLogger, now = Date.now())
   if (body) {
     notify({ kind: 'modpack', title: `Modpack aktualisiert (Version ${p.version})`, body, link: '/modpack', actionLabel: 'Zum Modpack' });
     log.info({ version: p.version }, 'Modpack-Änderung gemeldet');
+    setState(PREVIOUS, notified);
   }
   setState(NOTIFIED, current);
   setState(PENDING, null);
+}
+
+/** Was hat sich mit dem letzten gemeldeten Update geändert? Gilt bis zum nächsten Update. */
+export function changesBetween(before: PackSnapshot | undefined, after: PackSnapshot | undefined) {
+  if (!before || !after) return { since: null, added: [], updated: [], removed: [] };
+  const old = new Map(before.files.map((f) => [f.id, f]));
+  const now = new Set(after.files.map((f) => f.id));
+  return {
+    /** Version vor dem Update */
+    since: before.version ?? null,
+    added: after.files.filter((f) => !old.has(f.id)).map((f) => f.id),
+    updated: after.files.filter((f) => old.has(f.id) && old.get(f.id)!.sha1 !== f.sha1).map((f) => f.id),
+    removed: before.files.filter((f) => !now.has(f.id))
+      .map((f) => ({ title: f.title, mode: f.mode ?? 'required', kind: f.kind ?? 'mod' }))
+      .sort((a, b) => a.title.localeCompare(b.title, 'de')),
+  };
 }
 
 /** Wann sich das Pack zuletzt geändert hat (für „Aktualisiert …“ im Menü und Dashboard) */
@@ -387,6 +413,7 @@ export async function registerModpack(app: FastifyInstance) {
         loader: p.loader,
         size: p.files.reduce((sum, f) => sum + f.file.size, 0),
         contents,
+        changes: changesBetween(getState<PackSnapshot>(PREVIOUS), getState<PackSnapshot>(NOTIFIED)),
         problems: p.problems,
       };
     } catch (err) {
