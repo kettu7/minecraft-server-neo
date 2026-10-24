@@ -1,14 +1,16 @@
-import { Component, ElementRef, effect, inject, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Icon } from './icon';
 import { Status, StoragesService } from './projects.service';
 import { AuthService } from './auth';
 import { isDemo } from './demo';
+import { Bell, Toasts } from './notifications';
+import { packUpdated } from './modpack';
 
 const STATUS_POLL_MS = 15_000;
 
 @Component({
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, Icon],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, Icon, Bell, Toasts],
   selector: 'app-root',
   template: `
     <header class="topbar">
@@ -50,7 +52,7 @@ const STATUS_POLL_MS = 15_000;
             <span class="dot"></span>
             @switch (s.server.state) {
               @case ('online') {
-                Online<span class="sep" aria-hidden="true"></span>{{ s.server.online }} Spieler
+                <span class="status-word">Online<span class="sep" aria-hidden="true"></span></span>{{ s.server.online }} Spieler
               }
               @case ('starting') { Server startet … }
               @default { Server offline }
@@ -58,6 +60,7 @@ const STATUS_POLL_MS = 15_000;
           </span>
         }
       }
+      @if (auth.isMember() && !demo) { <app-bell /> }
       @if (auth.me(); as me) {
         <a routerLink="/profil" class="user-chip" routerLinkActive="active" [title]="'Profil von ' + me.displayName">
           @if (me.avatarUrl) {
@@ -73,11 +76,15 @@ const STATUS_POLL_MS = 15_000;
     <div #more popover class="row-menu nav-menu" role="menu" [style.top.px]="morePos().top" [style.left.px]="morePos().left"
          (toggle)="moreOpen.set($any($event).newState === 'open')">
       <a role="menuitem" routerLink="/items" routerLinkActive="active" (click)="closeMore()"><app-icon name="stack-2" [size]="16" />Items</a>
-      <a role="menuitem" routerLink="/modpack" routerLinkActive="active" (click)="closeMore()"><app-icon name="package" [size]="16" />Modpack</a>
+      <a role="menuitem" routerLink="/modpack" routerLinkActive="active" (click)="closeMore()">
+        <app-icon name="package" [size]="16" />Modpack
+        @if (packLabel(); as l) { <span class="updated-label" [class.fresh]="l.fresh" [title]="l.title">{{ l.text }}</span> }
+      </a>
     </div>
     <main>
       <router-outlet />
     </main>
+    @if (auth.isMember() && !demo) { <app-toasts /> }
   `,
 })
 export class App {
@@ -91,13 +98,14 @@ export class App {
   protected moreOpen = signal(false);
   protected morePos = signal({ top: 0, left: 0 });
   protected moreActive = signal(false);
+  protected packLabel = computed(() => packUpdated(this.status()?.modpackUpdatedAt));
 
   /** Menü unter dem „Mehr“-Button öffnen */
   protected toggleMore(event: MouseEvent) {
     const el = this.more().nativeElement;
     if (this.moreOpen()) return el.hidePopover();
     const r = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    this.morePos.set({ top: r.bottom + 8, left: Math.min(r.left, innerWidth - 228) });
+    this.morePos.set({ top: r.bottom + 8, left: Math.min(r.left, innerWidth - 260) });
     el.showPopover();
   }
 

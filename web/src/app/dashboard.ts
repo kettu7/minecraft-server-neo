@@ -5,7 +5,7 @@ import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from './auth';
 import { ProjectSummary, ProjectsService, StorageSummary, StoragesService, errorMessage } from './projects.service';
-import { Modpack, ModpackService } from './modpack';
+import { Modpack, ModpackService, packUpdated } from './modpack';
 import { ItemIcon } from './items';
 import { Icon } from './icon';
 import type { IconName } from './icons.generated';
@@ -121,7 +121,10 @@ const ROTATE_MS = 8_000;
 
       <!-- Modpack -->
       <a class="card modpack-teaser" routerLink="/modpack">
-        <span class="teaser-icon"><app-icon name="package" [size]="22" /></span>
+        <span class="teaser-top">
+          <span class="teaser-icon"><app-icon name="package" [size]="22" /></span>
+          @if (packLabel(); as l) { <span class="updated-label" [class.fresh]="l.fresh" [title]="l.title">{{ l.text }}</span> }
+        </span>
         <strong>Modpack</strong>
         <span class="hint">Alle spielen mit derselben Basis. Einmal installieren und loslegen.</span>
         @if (pack(); as p) {
@@ -255,6 +258,7 @@ export class Dashboard {
 
   protected info = signal<DashboardInfo | undefined>(undefined);
   protected pack = signal<Modpack | undefined>(undefined);
+  protected packLabel = computed(() => packUpdated(this.pack()?.updatedAt));
   protected projects = signal<ProjectSummary[]>([]);
   protected storages = signal<StorageSummary[]>([]);
   protected rankings = signal<RankingCategory[]>([]);

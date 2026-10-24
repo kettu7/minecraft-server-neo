@@ -18,7 +18,8 @@ import { registerOps } from './ops.ts';
 import { registerNewWorld } from './new-world.ts';
 import { registerProjectImages, removeProjectImages } from './project-images.ts';
 import { registerMods } from './mods.ts';
-import { registerModpack } from './modpack.ts';
+import { packUpdatedAt, registerModpack } from './modpack.ts';
+import { registerNotifications } from './notifications.ts';
 import { contentDisposition } from './download-name.ts';
 import { audit } from './users.ts';
 import {
@@ -48,6 +49,7 @@ await registerNewWorld(app);
 await registerProjectImages(app);
 await registerMods(app);
 await registerModpack(app);
+registerNotifications(app);
 
 app.get('/api/health', async () => ({ ok: true }));
 
@@ -291,7 +293,7 @@ app.get<{ Params: { id: string } }>('/api/backups/:id/download', async (req, rep
 
 app.get('/api/status', async () => {
   const { names: _names, ...server } = await liveStatus();
-  return { ...refreshStatus(), server };
+  return { ...refreshStatus(), server, modpackUpdatedAt: packUpdatedAt() };
 });
 
 // Dashboard: Server mit Spielernamen, Adresse und nächstem geplanten Neustart
@@ -300,6 +302,7 @@ app.get('/api/dashboard', async () => ({
   address: MC_ADDRESS,
   nextRestartAt: nextRestartAt(),
   rankings: rankingSettings().enabled,
+  modpackUpdatedAt: packUpdatedAt(),
 }));
 
 app.post('/api/refresh', async (req, reply) => {

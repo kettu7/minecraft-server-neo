@@ -294,6 +294,9 @@ main > :not(router-outlet) > p { margin: 0; }
   .topbar nav::-webkit-scrollbar { display: none; }
   .topbar nav a { flex-shrink: 0; }
   .user-chip span:not(.avatar) { display: none; }
+  /* Platz für die Glocke: „Online ·“ entfällt, Punkt + Spielerzahl reichen */
+  .server-status .status-word { display: none; }
+  .topbar .spacer { flex: 1 1 0; min-width: 0; }
 }
 
 /* Login */
@@ -1474,7 +1477,7 @@ a.button.secondary:focus-visible { outline: 2px solid var(--accent); outline-off
 .topbar nav .nav-more.active, .topbar nav .nav-more[aria-expanded=true] { color: var(--text); background: var(--glass-strong); box-shadow: inset 0 1px 0 var(--glass-highlight); }
 .nav-more .icon { transition: transform .18s; }
 .nav-more[aria-expanded=true] .icon { transform: rotate(180deg); }
-.nav-menu { width: 200px; }
+
 .nav-menu a {
   display: flex; align-items: center; gap: .65rem; padding: .6rem .7rem; border-radius: 8px;
   color: var(--text); text-decoration: none; font: 500 .9rem/1.2 var(--font-body);
@@ -1849,3 +1852,136 @@ app-new-world { display: grid; }
 
 /* Benutzer: Aktionsmenü */
 .users .actions-col { width: 3rem; text-align: right; }
+
+/* ───────────────────────── Benachrichtigungen ───────────────────────── */
+/* Glocke neben dem Profilbild */
+.bell {
+  position: relative; display: inline-grid; place-items: center; width: 2.4rem; height: 2.4rem; padding: 0; margin-right: -1.25rem;
+  border-radius: 50%; color: var(--muted); background: var(--glass); border: 1px solid var(--glass-border); box-shadow: none;
+  transition: color .15s, background .15s, border-color .15s;
+}
+.bell:hover:not(:disabled), .bell[aria-expanded="true"] {
+  color: var(--text); background: var(--glass-strong); border-color: rgba(255, 255, 255, .18); transform: none; filter: none;
+}
+.bell-dot {
+  position: absolute; top: .4rem; right: .45rem; width: .55rem; height: .55rem; border-radius: 50%;
+  background: var(--built); box-shadow: 0 0 0 2px var(--bg), 0 0 10px var(--built-glow);
+}
+
+/* Panel unter der Glocke (natives Popover im Top-Layer) */
+.notif-panel {
+  position: fixed; inset: auto; margin: 0; width: min(22rem, calc(100vw - 1rem)); max-height: min(34rem, calc(100vh - 6rem));
+  padding: 0; color: var(--text); border-radius: 14px; border: 1px solid var(--glass-border); background: rgba(14, 20, 36, .97);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 24px 48px -16px rgba(0, 0, 0, .9); overflow: hidden;
+}
+.notif-panel:popover-open { display: flex; flex-direction: column; animation: row-menu-in .16s cubic-bezier(.2, .8, .2, 1); }
+.notif-panel header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem 1rem; border-bottom: 1px solid var(--line); }
+.notif-panel header strong { font: 700 1rem var(--font-display); }
+.notif-count { font-size: .72rem; font-weight: 700; color: var(--built); background: rgba(90, 169, 255, .12); padding: .2rem .55rem; border-radius: 99px; }
+.notif-panel ul { list-style: none; margin: 0; padding: .35rem; overflow-y: auto; display: grid; gap: 2px; }
+.notif-panel li { display: flex; gap: .75rem; padding: .7rem .65rem; border-radius: 10px; position: relative; }
+.notif-panel li.fresh { background: rgba(90, 169, 255, .07); }
+.notif-panel li.fresh::before {
+  content: ""; position: absolute; left: .2rem; top: 1.15rem; width: .35rem; height: .35rem; border-radius: 50%; background: var(--built);
+}
+.notif-text { display: grid; gap: .2rem; min-width: 0; flex: 1; }
+.notif-text p { margin: 0; font-size: .82rem; color: var(--muted); line-height: 1.45; }
+.notif-text .link { margin: .1rem 0 0; justify-self: start; font-size: .8rem; }
+.notif-empty { justify-content: center; padding: 1.5rem; }
+
+/* Gemeinsam für Toast und Panel: Symbol je Art */
+.toast-icon {
+  --kind: var(--accent); flex-shrink: 0; display: inline-grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 10px;
+  color: var(--kind); background: color-mix(in srgb, var(--kind) 14%, transparent); border: 1px solid color-mix(in srgb, var(--kind) 25%, transparent);
+}
+.notif-panel .toast-icon { width: 2rem; height: 2rem; }
+[data-kind="restart"] .toast-icon, [data-kind="info"] .toast-icon, [data-kind="world"] .toast-icon { --kind: var(--built); }
+[data-kind="event"] .toast-icon, [data-kind="trophy"] .toast-icon, [data-kind="project"] .toast-icon { --kind: var(--warn); }
+[data-kind="backup"] .toast-icon, [data-kind="warning"] .toast-icon { --kind: var(--danger); }
+.toast-head { display: flex; align-items: baseline; justify-content: space-between; gap: .75rem; }
+.toast-head strong { font-size: .9rem; line-height: 1.3; }
+.toast-time { flex-shrink: 0; font-size: .72rem; color: var(--faint); white-space: nowrap; }
+
+/* Toast-Stapel oben rechts */
+.toast-stack {
+  position: fixed; top: 4.75rem; right: max(1rem, calc(50vw - 560px)); z-index: 40; width: min(23rem, calc(100vw - 2rem));
+  display: grid; gap: .5rem;
+}
+.toast-list { position: relative; display: grid; }
+.toast-stack.expanded .toast-list { gap: .6rem; max-height: calc(100vh - 9rem); overflow-y: auto; overscroll-behavior: contain; padding-bottom: .1rem; }
+.toast {
+  --i: 0; position: relative; z-index: calc(10 - var(--i)); display: flex; gap: .8rem; padding: .95rem 1rem; padding-right: 2.6rem;
+  border-radius: var(--radius); border: 1px solid var(--glass-border); background: rgba(17, 24, 42, .94);
+  backdrop-filter: blur(18px) saturate(150%); -webkit-backdrop-filter: blur(18px) saturate(150%);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 22px 44px -18px rgba(0, 0, 0, .9);
+  transition: transform .3s cubic-bezier(.2, .8, .2, 1), opacity .25s;
+}
+.toast-text { display: grid; gap: .25rem; min-width: 0; flex: 1; }
+.toast-text p { margin: 0; font-size: .84rem; line-height: 1.45; color: var(--muted); }
+.toast-actions { margin-top: .4rem; display: flex; gap: .5rem; }
+.toast-close {
+  position: absolute; top: .6rem; right: .6rem; width: 1.75rem; height: 1.75rem; padding: 0; display: inline-grid; place-items: center;
+  border-radius: 8px; color: var(--faint); background: transparent; border: 0; box-shadow: none;
+}
+.toast-close:hover:not(:disabled) { color: var(--text); background: rgba(255, 255, 255, .08); transform: none; filter: none; }
+
+/* Zugeklappt: Karten dahinter liegen versetzt, kleiner und halbtransparent unter der vorderen */
+.toast.behind {
+  position: absolute; inset: 0; pointer-events: none; background: rgb(34, 44, 68); border-color: rgba(255, 255, 255, .16);
+  transform: translateY(calc(var(--i) * .75rem)) scale(calc(1 - var(--i) * .06)); transform-origin: 50% 100%;
+  opacity: calc(1 - var(--i) * .3);
+}
+.toast > * { transition: opacity .2s; }
+.toast.behind > * { opacity: 0; }
+.toast-stack:not(.expanded) .toast-list:has(.behind) { margin-bottom: 1.5rem; }
+.toast-stack:not(.expanded) .toast-list:has(.behind):not(:has(.toast:nth-child(3))) { margin-bottom: .75rem; }
+
+.toast.entering { animation: toast-in .5s cubic-bezier(.2, .8, .2, 1) backwards; animation-delay: calc(.15s + var(--i) * .08s); }
+.toast.behind.entering { animation-name: toast-in-behind; }
+.toast.leaving { opacity: 0; transform: translateX(1.5rem); }
+@keyframes toast-in { from { opacity: 0; transform: translateX(calc(100% + 2rem)); } }
+@keyframes toast-in-behind {
+  from { opacity: 0; transform: translateX(calc(100% + 2rem)) translateY(calc(var(--i) * .75rem)) scale(calc(1 - var(--i) * .06)); }
+}
+
+.toast-footer {
+  justify-self: end; display: flex; align-items: center; gap: .4rem 1rem; flex-wrap: wrap; padding: .4rem .85rem; font-size: .8rem;
+  border-radius: 99px; background: rgba(14, 20, 36, .88); border: 1px solid var(--glass-border);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+}
+.toast-footer .link { margin: 0; color: var(--muted); }
+.toast-footer .link:hover { color: var(--text); }
+
+@media (max-width: 720px) {
+  .toast-stack { top: auto; bottom: 1rem; right: 1rem; }
+  .bell { margin-right: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast, .toast > * { transition: none; }
+  .toast.entering, .toast.behind.entering, .notif-panel:popover-open { animation: none; }
+}
+
+/* „Aktualisiert 24.10.“ – Modpack im Menü und im Dashboard */
+.updated-label {
+  margin-left: auto; padding: .15rem .5rem; border-radius: 99px; white-space: nowrap;
+  font: 600 .7rem/1.3 var(--font-body); color: var(--faint); background: rgba(255, 255, 255, .05); border: 1px solid var(--line);
+}
+.updated-label.fresh { color: var(--accent); background: var(--accent-soft); border-color: rgba(95, 227, 92, .3); }
+.nav-menu { width: 15.5rem; overflow: hidden; }
+.toast-list, .notif-panel ul { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .18) transparent; }
+.teaser-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+
+/* Tooltip an Pills (Clientmods: „Pflicht · für 2 Mods“) */
+.pill.tip { position: relative; cursor: help; }
+.pill.tip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tip-box {
+  position: absolute; z-index: 20; top: calc(100% + .5rem); right: 0; width: max-content; max-width: 16rem;
+  display: grid; gap: .3rem; padding: .7rem .8rem; border-radius: 10px; text-align: left; white-space: normal;
+  font: 400 .8rem/1.4 var(--font-body); color: var(--text); background: rgba(14, 20, 36, .98); border: 1px solid var(--glass-border);
+  box-shadow: 0 18px 36px -14px rgba(0, 0, 0, .9);
+  opacity: 0; visibility: hidden; transform: translateY(-4px); transition: opacity .15s, transform .15s, visibility .15s;
+}
+.pill.tip:hover .tip-box, .pill.tip:focus .tip-box { opacity: 1; visibility: visible; transform: none; }
+.tip-title { color: var(--muted); font-size: .76rem; }
+.tip-item { font-weight: 600; }
+.tip-item::before { content: ""; display: inline-block; width: .3rem; height: .3rem; margin: 0 .5rem .15rem 0; border-radius: 50%; background: var(--accent); }

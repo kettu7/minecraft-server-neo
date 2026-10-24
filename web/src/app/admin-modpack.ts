@@ -103,7 +103,7 @@ const SUGGESTIONS: Record<PackKind, string[]> = {
                         <a class="mod-title" [href]="r.url" target="_blank" rel="noopener noreferrer">{{ r.title }}</a>
                         <span class="mod-desc">{{ r.description }}</span>
                         @if (r.note) { <span class="mod-note with-icon"><app-icon name="note" [size]="14" />{{ r.note }}</span> }
-                        @if (r.reason || r.auto) {
+                        @if ((r.reason || r.auto) && !forced(r)) {
                           <span class="mod-deps"><span>{{ r.reason ?? 'automatisch als Abhängigkeit' }}</span></span>
                         }
                       </div>
@@ -129,6 +129,15 @@ const SUGGESTIONS: Record<PackKind, string[]> = {
                     @if (r.locked) {
                       <span class="pill" data-state="covered" title="Spieler brauchen den Mod, um auf den Server zu kommen.">
                         <i></i>Pflicht<span class="sep" aria-hidden="true"></span>wird benötigt
+                      </span>
+                    } @else if (forced(r)) {
+                      <!-- Server-Mod steht auf „Aus“, kommt aber als Abhängigkeit ins Pack: fest, mit Liste im Tooltip -->
+                      <span class="pill tip" data-state="covered" tabindex="0" [attr.aria-describedby]="'need-' + r.projectId">
+                        <i></i>{{ r.mode === 'required' ? 'Pflicht' : 'Optional' }}<span class="sep" aria-hidden="true"></span>für {{ r.neededBy.length }} {{ r.neededBy.length === 1 ? 'Mod' : 'Mods' }}
+                        <span class="tip-box" role="tooltip" [id]="'need-' + r.projectId">
+                          <span class="tip-title">Kommt ins Pack, weil {{ r.neededBy.length === 1 ? 'dieser Mod ihn braucht' : 'diese Mods ihn brauchen' }}:</span>
+                          @for (m of r.neededBy; track m) { <span class="tip-item">{{ m }}</span> }
+                        </span>
                       </span>
                     } @else {
                       <div class="segmented small" role="group" [attr.aria-label]="r.title + ' im Pack'">
@@ -319,6 +328,9 @@ export class AdminModpack {
       this.error.set(errorMessage(err));
     }
   }
+
+  /** Server-Mod auf „Aus“, der trotzdem als Abhängigkeit ins Pack kommt – dann gibt es nichts zu wählen */
+  protected forced = (r: PackRow) => r.source === 'server' && this.current(r) === 'excluded' && r.mode !== 'excluded' && r.neededBy.length > 0;
 
   /** Eingestellter Modus (Server-Mods: "auto" = Aus) */
   current(r: PackRow): PackMode {

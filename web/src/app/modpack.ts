@@ -42,6 +42,8 @@ export interface PackRow {
   locked: boolean;
   mode: PackMode;
   reason: string | null;
+  /** Mods im Pack, die diesen Eintrag brauchen */
+  neededBy: string[];
   auto: boolean;
   note: string;
   versionNumber: string;
@@ -231,4 +233,15 @@ export class ModpackPage {
 
 function readSeen(): string | null {
   try { return localStorage.getItem(SEEN_KEY); } catch { return null; }
+}
+
+/** „Aktualisiert 24.10.“ für Menü und Dashboard – in den ersten 7 Tagen hervorgehoben */
+export function packUpdated(iso: string | null | undefined, now = Date.now()) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return {
+    text: `Aktualisiert ${d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}`,
+    fresh: now - d.getTime() < 7 * 86400_000,
+    title: `Modpack zuletzt geändert am ${d.toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' })}`,
+  };
 }

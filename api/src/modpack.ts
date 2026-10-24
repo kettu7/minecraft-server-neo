@@ -4,10 +4,11 @@
 // Das Pack enthält keine Jar-Dateien, nur Download-Links zu Modrinth samt Prüfsummen; der Launcher lädt selbst.
 import { createHash } from 'node:crypto';
 import AdmZip from 'adm-zip';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { db, transaction } from './db.ts';
 import { requireAdmin } from './auth.ts';
 import { audit } from './users.ts';
+import { notify } from './notifications.ts';
 import { appliedMods, ensureSeeded, getState, listManaged, requiredProjects, setState } from './mod-manager.ts';
 import {
   cached,
@@ -273,6 +274,69 @@ async function packInfo() {
   return { ...a, minecraft, loader, version: `1.${v.n}`, updatedAt: v.at };
 }
 
+/* ───────────────────────── Änderungen melden ───────────────────────── */
+
+/** Stand des Packs, wie er zuletzt an die Spieler gemeldet wurde */
+export interface PackSnapshot { hash: string; minecraft: string; files: Array<{ id: string; title: string; sha1: string }> }
+const NOTIFIED = 'pack_notified';
+const PENDING = 'pack_pending';
+/** so lange muss das Pack unverändert bleiben, bevor gemeldet wird – mehrere Klicks im Admin ergeben eine Meldung */
+export const PACK_STABLE_MS = 5 * 60_000;
+
+const names = (list: Array<{ title: string }>) => list.length > 3
+  ? `${list.slice(0, 3).map((f) => f.title).join(', ')} und ${list.length - 3} weitere`
+  : list.map((f) => f.title).join(', ');
+
+/** Was hat sich für die Spieler geändert? null = nichts, wofür man neu herunterladen müsste */
+export function describePackChange(before: PackSnapshot, after: PackSnapshot): string | null {
+  const old = new Map(before.files.map((f) => [f.id, f]));
+  const now = new Map(after.files.map((f) => [f.id, f]));
+  const added = after.files.filter((f) => !old.has(f.id));
+  const removed = before.files.filter((f) => !now.has(f.id));
+  const updated = after.files.filter((f) => old.has(f.id) && old.get(f.id)!.sha1 !== f.sha1);
+  const parts: string[] = [];
+  if (before.minecraft !== after.minecraft) parts.push(`Jetzt für Minecraft ${after.minecraft}.`);
+  if (added.length) parts.push(`Neu: ${names(added)}.`);
+  if (updated.length) parts.push(`Aktualisiert: ${names(updated)}.`);
+  if (removed.length) parts.push(`Entfernt: ${names(removed)}.`);
+  return parts.length ? `${parts.join(' ')} Bitte das Modpack neu herunterladen.` : null;
+}
+
+/** Regelmäßig: Pack neu berechnen und Änderungen (nach kurzer Ruhezeit) als Benachrichtigung an alle melden */
+export async function checkPackChanges(log: FastifyBaseLogger, now = Date.now()) {
+  const p = await packInfo();
+  const titles = new Map(p.sources.map((s) => [s.projectId, s.title]));
+  const current: PackSnapshot = {
+    hash: getState<{ hash: string }>('pack_version')!.hash,
+    minecraft: p.minecraft,
+    files: p.files.map((f) => ({ id: f.projectId, title: titles.get(f.projectId) ?? f.projectId, sha1: f.file.sha1 })),
+  };
+  const notified = getState<PackSnapshot>(NOTIFIED);
+  // Erster Lauf: nur merken, nichts melden
+  if (!notified || notified.hash === current.hash) {
+    if (!notified) setState(NOTIFIED, current);
+    setState(PENDING, null);
+    return;
+  }
+  const pending = getState<{ hash: string; since: number }>(PENDING);
+  if (pending?.hash !== current.hash) {
+    setState(PENDING, { hash: current.hash, since: now });
+    return;
+  }
+  if (now - pending.since < PACK_STABLE_MS) return;
+
+  const body = describePackChange(notified, current);
+  if (body) {
+    notify({ kind: 'modpack', title: `Modpack aktualisiert (Version ${p.version})`, body, link: '/modpack', actionLabel: 'Zum Modpack' });
+    log.info({ version: p.version }, 'Modpack-Änderung gemeldet');
+  }
+  setState(NOTIFIED, current);
+  setState(PENDING, null);
+}
+
+/** Wann sich das Pack zuletzt geändert hat (für „Aktualisiert …“ im Menü und Dashboard) */
+export const packUpdatedAt = () => getState<{ at: string }>('pack_version')?.at ?? null;
+
 /* ───────────────────────── Routen ───────────────────────── */
 
 /** Iris (Fabric) – Shader brauchen ihn, das steht bei Modrinth aber nicht als Abhängigkeit drin */
@@ -287,6 +351,10 @@ const MODES: PackMode[] = ['required', 'optional', 'excluded'];
 const kindPath = (kind: PackKind, slug: string) => `https://modrinth.com/${kind}/${slug}`;
 
 export async function registerModpack(app: FastifyInstance) {
+  const check = () => checkPackChanges(app.log).catch((err) => app.log.debug(err, 'Modpack-Prüfung übersprungen'));
+  setTimeout(check, 30_000).unref();
+  setInterval(check, 2 * 60_000).unref();
+
   // Für alle Mitglieder: was ist drin, welche Version
   app.get('/api/modpack', async (_req, reply) => {
     try {
@@ -377,6 +445,8 @@ export async function registerModpack(app: FastifyInstance) {
           locked: s.locked,
           mode: e?.mode ?? 'excluded',
           reason: e?.reason ?? null,
+          /** Mods im Pack, die diesen Eintrag brauchen (Grund für „Pflicht · für X Mods“) */
+          neededBy: p.sources.filter((x) => p.entries.has(x.projectId) && x.requires.includes(s.projectId)).map((x) => x.title),
           auto: !!i?.auto,
           note: i?.note ?? '',
           versionNumber: m?.versionNumber ?? i!.version_number,

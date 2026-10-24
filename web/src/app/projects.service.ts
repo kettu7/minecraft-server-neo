@@ -118,6 +118,8 @@ export interface Status {
   lastRun: RefreshReport | null;
   /** Minecraft-Server für die Kopfzeile */
   server: { state: 'online' | 'starting' | 'offline'; online: number; max: number };
+  /** letzte Änderung am Modpack (für „Aktualisiert …“ im Menü) */
+  modpackUpdatedAt: string | null;
 }
 
 /** Beschriftungen wie in Litematica, damit man die Werte leicht wiederfindet */
