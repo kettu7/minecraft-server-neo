@@ -1997,3 +1997,63 @@ app-new-world { display: grid; }
 .removed-title { font-weight: 700; color: var(--text); }
 .removed-icon { display: inline-grid; place-items: center; color: var(--danger); background: var(--danger-soft); border: 1px solid rgba(255, 107, 107, .25); }
 .removed-tile .tip-box { left: .8rem; right: auto; }
+
+/* ───────────────────────── Karte: eigene Marker ───────────────────────── */
+.map-tools { display: flex; align-items: center; gap: 1rem 1.5rem; flex-wrap: wrap; justify-content: flex-end; }
+.legend-icon { width: 1.1rem; height: 1.1rem; margin-right: .4rem; vertical-align: -.25rem; image-rendering: pixelated; }
+.map-pick-banner {
+  position: absolute; bottom: 1.25rem; left: 50%; transform: translateX(-50%); z-index: 2; width: max-content; max-width: calc(100% - 2rem);
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; justify-content: center;
+  padding: .6rem 1rem; border-radius: 99px; font-size: .86rem; font-weight: 600; color: var(--text);
+  background: rgba(9, 13, 24, .9); border: 1px solid rgba(95, 227, 92, .45); box-shadow: 0 12px 30px -10px rgba(0, 0, 0, .8);
+  animation: row-menu-in .16s cubic-bezier(.2, .8, .2, 1);
+}
+.map-pick-banner app-icon { color: var(--accent); }
+.map-pick-banner .link { margin: 0; font-weight: 500; }
+
+.marker-dialog { width: min(34rem, calc(100vw - 2rem)); }
+.marker-dialog .dialog-body { grid-template-rows: auto 1fr; overflow-y: auto; }
+.marker-dialog-title { display: flex; align-items: center; gap: .85rem; min-width: 0; }
+.marker-dialog-icon {
+  width: 2.6rem; height: 2.6rem; padding: .35rem; flex-shrink: 0; image-rendering: pixelated;
+  border-radius: var(--radius-sm); background: rgba(0, 0, 0, .3); border: 1px solid var(--glass-border);
+}
+.marker-dialog-title .hint { margin: .2rem 0 0; font-size: .82rem; }
+.marker-form { margin-top: 0; grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.5fr); }
+.marker-form .optional { font-weight: 400; color: var(--faint); margin-left: .3rem; }
+.marker-form textarea {
+  font: inherit; color: inherit; width: 100%; resize: vertical; min-height: 4.5rem; padding: .7rem .85rem;
+  background: rgba(0, 0, 0, .28); border: 1px solid var(--glass-border); border-radius: var(--radius-sm);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, .35); transition: border-color .15s, box-shadow .15s;
+}
+.marker-form textarea:focus { outline: none; border-color: var(--accent); box-shadow: inset 0 2px 6px rgba(0, 0, 0, .35), 0 0 0 3px var(--accent-soft); }
+.marker-form textarea::placeholder { color: var(--faint); }
+.marker-form .form-footer button:not(.text-button) { min-width: 8rem; }
+.marker-form .error { margin: 0; }
+
+.marker-categories { border: 0; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; min-width: 0; }
+.marker-categories legend { padding: 0; margin-bottom: .35rem; font-size: .82rem; font-weight: 600; color: var(--muted); }
+.storage-form label.marker-category {
+  position: relative; display: grid; justify-items: center; gap: .4rem; padding: .7rem .4rem .6rem; cursor: pointer; text-align: center;
+  border-radius: var(--radius-sm); border: 1px solid var(--glass-border); background: rgba(0, 0, 0, .2);
+  color: var(--muted); font-weight: 600; font-size: .78rem; transition: border-color .15s, background .15s, color .15s;
+}
+.marker-category input { position: absolute; opacity: 0; pointer-events: none; }
+.marker-category img { width: 2rem; height: 2rem; image-rendering: pixelated; }
+.storage-form label.marker-category:hover { color: var(--text); border-color: rgba(255, 255, 255, .18); }
+.storage-form label.marker-category:has(input:checked) { color: var(--text); border-color: var(--accent); background: var(--accent-soft); }
+.marker-category:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.marker-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin: 0; }
+.marker-facts div { padding: .7rem .85rem; border-radius: var(--radius-sm); background: rgba(0, 0, 0, .2); border: 1px solid var(--line); }
+.marker-facts dt { font-size: .74rem; color: var(--faint); margin-bottom: .2rem; }
+.marker-facts dd { margin: 0; font-weight: 600; }
+.marker-description { margin: 0; color: var(--muted); line-height: 1.5; white-space: pre-line; }
+
+@media (max-width: 640px) {
+  .marker-form { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .marker-form label:has(select) { grid-column: 1 / -1; }
+  .marker-categories { grid-template-columns: repeat(2, 1fr); }
+  .marker-facts { grid-template-columns: 1fr; }
+  .map-tools { justify-content: flex-start; }
+}
