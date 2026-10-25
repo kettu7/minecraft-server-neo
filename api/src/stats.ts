@@ -41,7 +41,7 @@ export const CATEGORIES: Category[] = [
   { key: 'builder', title: 'Baumeister', caption: 'Meiste Blöcke platziert', unit: 'Blöcke',
     value: (s) => sum(s['minecraft:used'], (id) => !NOT_A_BLOCK.test(id) && !FOODS.has(id)) },
   { key: 'miner', title: 'Bergarbeiter', caption: 'Meiste Blöcke abgebaut', unit: 'Blöcke', value: (s) => sum(s['minecraft:mined']) },
-  { key: 'diamonds', title: 'Diamantfieber', caption: 'Meiste Diamanten abgebaut', unit: 'Erze',
+  { key: 'diamonds', title: 'Diamantfieber', caption: 'Meiste Diamanten abgebaut', unit: 'Diamanten',
     value: (s) => sum(s['minecraft:mined'], (id) => id === 'diamond_ore' || id === 'deepslate_diamond_ore') },
   { key: 'hunter', title: 'Monsterjäger', caption: 'Meiste Mobs getötet', unit: 'Mobs', value: (s) => custom(s, 'mob_kills') },
   { key: 'traveler', title: 'Weltenbummler', caption: 'Weiteste Strecke zu Fuß', unit: 'km',
