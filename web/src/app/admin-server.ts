@@ -25,6 +25,7 @@ export interface RankingSettings { enabled: boolean; resetAt: string | null }
 
 export interface AutoRestart { enabled: boolean; time: string; nextAt: string | null }
 export interface BackupSettings { onlyWithPlayers: boolean }
+export interface MapSettings { pauseWhilePlaying: boolean; paused: boolean }
 
 @Injectable({ providedIn: 'root' })
 export class ServerService {
@@ -42,6 +43,8 @@ export class ServerService {
   setAutoRestart(body: Partial<AutoRestart>) { return firstValueFrom(this.http.post<AutoRestart>('/api/server/auto-restart', body)); }
   backupSettings() { return firstValueFrom(this.http.get<BackupSettings>('/api/backups/settings')); }
   setBackupSettings(body: BackupSettings) { return firstValueFrom(this.http.post<BackupSettings>('/api/backups/settings', body)); }
+  mapSettings() { return firstValueFrom(this.http.get<MapSettings>('/api/map/settings')); }
+  setMapSettings(body: Pick<MapSettings, 'pauseWhilePlaying'>) { return firstValueFrom(this.http.post<MapSettings>('/api/map/settings', body)); }
   stop() { return firstValueFrom(this.http.post('/api/server/stop', {})); }
   start() { return firstValueFrom(this.http.post('/api/server/start', {})); }
 }
@@ -216,6 +219,25 @@ const POLL_MS = 5_000;
           </div>
         }
 
+        @if (mapSettings(); as m) {
+          <div class="setting">
+            <label class="switch-row">
+              <span class="switch">
+                <input type="checkbox" [checked]="m.pauseWhilePlaying" (change)="toggleMapPause($any($event.target).checked)" [disabled]="busy()" />
+                <span></span>
+              </span>
+              <span class="switch-text">
+                <strong>Karte nur ohne Spieler rendern</strong>
+                <span class="hint">
+                  @if (m.pauseWhilePlaying) {
+                    {{ m.paused ? 'Gerade pausiert' : 'Rendert gerade' }}<span class="sep" aria-hidden="true"></span>Weiter 5 Min. nachdem der Letzte geht
+                  } @else { Rendert immer, auch während gespielt wird }
+                </span>
+              </span>
+            </label>
+          </div>
+        }
+
         @if (ranking(); as r) {
           <div class="setting">
             <label class="switch-row">
@@ -225,7 +247,7 @@ const POLL_MS = 5_000;
               </span>
               <span class="switch-text">
                 <strong>Ranglisten im Dashboard</strong>
-                <span class="hint">{{ r.resetAt ? 'Zählt seit ' + day(r.resetAt) : 'Zählt seit Beginn' }}<span class="sep" aria-hidden="true"></span>Ausblenden löscht nichts</span>
+                <span class="hint">{{ r.resetAt ? 'Zählt seit ' + day(r.resetAt) : 'Zählt seit Beginn' }}<span class="sep" aria-hidden="true"></span>Creative und Zuschauer zählen nicht</span>
               </span>
             </label>
             <button type="button" class="secondary compact with-icon" (click)="resetRanking()" [disabled]="busy()">
@@ -271,6 +293,7 @@ export class AdminServer {
   protected autoRestart = signal<AutoRestart | undefined>(undefined);
   protected ranking = signal<RankingSettings | undefined>(undefined);
   protected backupSettings = signal<BackupSettings | undefined>(undefined);
+  protected mapSettings = signal<MapSettings | undefined>(undefined);
   protected error = signal('');
   protected notice = signal('');
   protected copied = signal('');
@@ -309,13 +332,14 @@ export class AdminServer {
 
   private async load() {
     try {
-      const [info, autoRestart, ranking, backupSettings] = await Promise.all([
-        this.api.info(), this.api.autoRestart(), this.api.ranking(), this.api.backupSettings(),
+      const [info, autoRestart, ranking, backupSettings, mapSettings] = await Promise.all([
+        this.api.info(), this.api.autoRestart(), this.api.ranking(), this.api.backupSettings(), this.api.mapSettings(),
       ]);
       this.info.set(info);
       this.autoRestart.set(autoRestart);
       this.ranking.set(ranking);
       this.backupSettings.set(backupSettings);
+      this.mapSettings.set(mapSettings);
     } catch (err) {
       this.error.set(errorMessage(err));
     }
@@ -335,6 +359,13 @@ export class AdminServer {
     this.run(
       async () => this.backupSettings.set(await this.api.setBackupSettings({ onlyWithPlayers })),
       onlyWithPlayers ? 'Backups nur noch, wenn gespielt wird.' : 'Backups wieder stündlich, auch ohne Spieler.',
+    );
+  }
+
+  toggleMapPause(pauseWhilePlaying: boolean) {
+    this.run(
+      async () => this.mapSettings.set(await this.api.setMapSettings({ pauseWhilePlaying })),
+      pauseWhilePlaying ? 'Die Karte rendert nur noch, wenn niemand spielt.' : 'Die Karte rendert wieder durchgehend.',
     );
   }
 

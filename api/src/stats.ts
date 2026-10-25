@@ -1,7 +1,8 @@
 // Rangliste fürs Dashboard aus den Spieler-Statistiken von Minecraft (world/players/stats/<uuid>.json).
 // Minecraft schreibt die Dateien beim Autosave (alle 5 Min.) und beim Ausloggen.
 // „Zurücksetzen“ löscht nichts: es merkt sich die aktuellen Werte als Nullpunkt und zieht sie künftig ab –
-// für alle (Einstellungen) oder für einzelne Spieler (Benutzer → Menü).
+// für alle (Einstellungen) oder für einzelne Spieler (Benutzer → Menü). Zuwachs im Creative- oder
+// Zuschauermodus wandert ebenfalls in den Nullpunkt und zählt so nicht mit.
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
@@ -133,10 +134,80 @@ export function rank(
   });
 }
 
+/* ───────────────────────── Creative und Zuschauer zählen nicht ───────────────────────── */
+// Minecraft trennt die Statistiken nicht nach Spielmodus. Deshalb merkt sich die API beim Wechsel in
+// Creative/Zuschauer die Werte als Startpunkt; beim Zurückwechseln (oder Ausloggen) wandert der Zuwachs
+// in den Nullpunkt des Spielers. Erkannt wird über den Spieler-Wächter (player-watch.ts).
+
+const CREATIVE = 'ranking_creative';
+/** offene Creative-Abschnitte: UUID → Name und Werte beim Wechsel */
+export type CreativeSessions = Record<string, { name: string; start: Record<string, number> }>;
+
+/** Zuwachs seit dem Startpunkt je Kategorie (nie negativ, z. B. nach einem Absturz ohne Speichern) */
+const gain = (start: Record<string, number>, now: Record<string, number>) =>
+  Object.fromEntries(CATEGORIES.map((c) => [c.key, Math.max(0, (now[c.key] ?? 0) - (start[c.key] ?? 0))]));
+const plus = (a: Record<string, number> = {}, b: Record<string, number>) =>
+  Object.fromEntries(CATEGORIES.map((c) => [c.key, (a[c.key] ?? 0) + (b[c.key] ?? 0)]));
+
+/** Nullpunkt inklusive laufender Creative-Abschnitte – wer gerade im Creative ist, sammelt nichts */
+export function withOpenSessions(players: RankedPlayer[], baseline: Baseline['values'] = {}, sessions: CreativeSessions = {}) {
+  const values = { ...baseline };
+  for (const p of players) {
+    const s = sessions[p.uuid];
+    if (s) values[p.uuid] = plus(values[p.uuid], gain(s.start, p.values));
+  }
+  return values;
+}
+
+/** Abschnitt beenden: Zuwachs dauerhaft in den Nullpunkt übernehmen */
+export function closeSession(baseline: Baseline['values'], start: Record<string, number>, now: Record<string, number>, uuid: string) {
+  return { ...baseline, [uuid]: plus(baseline[uuid], gain(start, now)) };
+}
+
+/**
+ * Spielmodi der Online-Spieler einrechnen (Name → true = Creative/Zuschauer). Bei einem Wechsel wird vorher
+ * gespeichert, damit die Statistik-Datei den Stand genau zum Wechsel enthält. Wer nicht mehr online ist,
+ * wird mit dem Stand vom Ausloggen abgeschlossen.
+ */
+export async function trackGameModes(modes: Map<string, boolean>, save: () => Promise<unknown>) {
+  const sessions = { ...getState<CreativeSessions>(CREATIVE) };
+  const open = new Set(Object.values(sessions).map((s) => s.name.toLowerCase()));
+  const starting = [...modes].filter(([name, excluded]) => excluded && !open.has(name)).map(([name]) => name);
+  const ending = Object.entries(sessions).filter(([, s]) => modes.get(s.name.toLowerCase()) !== true);
+  if (!starting.length && !ending.length) return;
+
+  if ([...starting, ...ending.map(([, s]) => s.name.toLowerCase())].some((name) => modes.has(name))) await save();
+  const players = new Map((await readPlayers()).map((p) => [p.name.toLowerCase(), p]));
+  let baseline = getState<Baseline>(BASELINE) ?? { resetAt: null, values: {} };
+
+  for (const name of starting) {
+    const p = players.get(name);
+    // Ganz neue Spieler haben noch keine Datei – dann zählt bisher nichts, Start bei 0
+    if (p) sessions[p.uuid] = { name: p.name, start: p.values };
+  }
+  for (const [uuid, s] of ending) {
+    const p = players.get(s.name.toLowerCase());
+    if (p) baseline = { ...baseline, values: closeSession(baseline.values, s.start, p.values, uuid) };
+    delete sessions[uuid];
+  }
+  setState(BASELINE, baseline);
+  setState(CREATIVE, sessions);
+  cached = null;
+}
+
+/** Nach dem Zurücksetzen beginnen laufende Abschnitte beim neuen Nullpunkt */
+function rebaseSessions(players: RankedPlayer[]) {
+  const sessions = { ...getState<CreativeSessions>(CREATIVE) };
+  for (const p of players) if (sessions[p.uuid]) sessions[p.uuid] = { ...sessions[p.uuid], start: p.values };
+  setState(CREATIVE, sessions);
+}
+
 let cached: { at: number; value: ReturnType<typeof rank> } | null = null;
 async function rankings(fresh = false) {
   if (!fresh && cached && Date.now() - cached.at < CACHE_MS) return cached.value;
-  const value = rank([...(await readPlayers()), ...(getState<RankedPlayer[]>(DUMMY) ?? [])], getState<Baseline>(BASELINE)?.values);
+  const real = await readPlayers();
+  const baseline = withOpenSessions(real, getState<Baseline>(BASELINE)?.values, getState<CreativeSessions>(CREATIVE));
+  const value = rank([...real, ...(getState<RankedPlayer[]>(DUMMY) ?? [])], baseline);
   cached = { at: Date.now(), value };
   return value;
 }
@@ -182,6 +253,7 @@ export async function registerStats(app: FastifyInstance) {
     if (!player) return reply.code(404).send({ error: `Für ${req.body?.name ?? 'diesen Spieler'} gibt es noch keine Statistiken.` });
     const current = getState<Baseline>(BASELINE);
     setState(BASELINE, { resetAt: current?.resetAt ?? null, values: { ...current?.values, [player.uuid]: player.values } });
+    rebaseSessions([player]);
     cached = null;
     audit(req.user!.id, 'statistik zurückgesetzt', player.name);
     return { ok: true };
@@ -193,6 +265,7 @@ export async function registerStats(app: FastifyInstance) {
     const players = await readPlayers();
     const baseline: Baseline = { resetAt: new Date().toISOString(), values: Object.fromEntries(players.map((p) => [p.uuid, p.values])) };
     setState(BASELINE, baseline);
+    rebaseSessions(players);
     setState(DUMMY, []); // Beispiel-Spieler verschwinden beim Zurücksetzen
     cached = null;
     audit(req.user!.id, 'rangliste zurückgesetzt');
