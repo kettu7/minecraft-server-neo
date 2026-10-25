@@ -84,7 +84,10 @@ export class MarkersService {
               }
             </fieldset>
             <label>X <input name="x" type="number" step="1" required [value]="position().x" /></label>
-            <label>Y <input name="y" type="number" step="1" required [value]="position().y" /></label>
+            <label>
+              <span>Y @if (estimatedY()) { <span class="estimated">geschätzt</span> }</span>
+              <input name="y" type="number" step="1" required [value]="position().y" (input)="estimatedY.set(false)" />
+            </label>
             <label>Z <input name="z" type="number" step="1" required [value]="position().z" /></label>
             <label>Dimension
               <select name="dimension">
@@ -93,6 +96,9 @@ export class MarkersService {
                 }
               </select>
             </label>
+            @if (estimatedY()) {
+              <p class="hint wide marker-estimate">Die Höhe lässt sich aus der Übersicht nicht ablesen. Für genaue Koordinaten Y anpassen (im Spiel mit F3) oder näher heranzoomen.</p>
+            }
             <label class="wide"><span>Beschreibung <span class="optional">optional</span></span>
               <textarea name="description" rows="3" maxlength="300" placeholder="z. B. Eingang über die Brücke, Tür mit Knopf">{{ marker()?.description ?? '' }}</textarea>
             </label>
@@ -139,6 +145,8 @@ export class MarkerDialog {
   protected marker = signal<MapMarker | null>(null);
   protected category = signal<MarkerCategory>('base');
   protected position = signal<{ x: number; y: number; z: number; dimension: Dimension }>({ x: 0, y: 64, z: 0, dimension: 'minecraft:overworld' });
+  /** Höhe nur geschätzt (Klick in die Übersicht oder Koordinaten von Hand) */
+  protected estimatedY = signal(false);
   protected busy = signal(false);
   protected error = signal('');
   protected copied = signal(false);
@@ -146,10 +154,11 @@ export class MarkerDialog {
   protected title = computed(() => this.marker()?.name ?? 'Neuer Marker');
 
   /** Neuer Marker an einer Stelle der Karte */
-  openNew(at: { x: number; y: number; z: number; dimension: Dimension }) {
+  openNew({ estimatedY = false, ...at }: { x: number; y: number; z: number; dimension: Dimension; estimatedY?: boolean }) {
     this.marker.set(null);
     this.category.set('base');
     this.position.set(at);
+    this.estimatedY.set(estimatedY);
     this.show();
   }
 
@@ -158,6 +167,7 @@ export class MarkerDialog {
     this.marker.set(m);
     this.category.set(m.category);
     this.position.set({ x: m.x, y: m.y, z: m.z, dimension: m.dimension });
+    this.estimatedY.set(false);
     this.copied.set(false);
     this.show();
   }

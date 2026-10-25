@@ -2057,3 +2057,5 @@ app-new-world { display: grid; }
   .marker-facts { grid-template-columns: 1fr; }
   .map-tools { justify-content: flex-start; }
 }
+.marker-form .estimated { margin-left: .3rem; font-weight: 600; color: var(--warn); }
+.marker-form .marker-estimate { margin: -.35rem 0 0; font-size: .8rem; }

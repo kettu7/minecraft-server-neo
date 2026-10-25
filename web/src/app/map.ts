@@ -16,8 +16,8 @@ const MAP_OF: Record<Dimension, string> = {
 const DIMENSION_OF = Object.fromEntries(Object.entries(MAP_OF).map(([dim, map]) => [map, dim])) as Record<string, Dimension>;
 
 const REFRESH_MS = 30_000;
-/** Kameraabstand, ab dem BlueMap die genaue Ansicht lädt (Klick liefert dann auch die Höhe) */
-const PICK_DISTANCE = 80;
+/** Vorschlag für die Höhe, wenn die Karte sie nicht liefert */
+const SEA_LEVEL = 64;
 
 /** Mitte des Grundrisses eines Projekts in Weltkoordinaten (Drehung/Spiegelung wie Litematica) */
 export function projectCenter(p: ProjectSummary): { x: number; z: number } | null {
@@ -102,7 +102,7 @@ ${MARKER_CATEGORY_KEYS.map((c) => `  .neo-pin--${c} span { border-color: ${MARKE
         @if (picking()) {
           <div class="map-pick-banner" role="status">
             <app-icon name="map-pin" [size]="16" />
-            <span>{{ pickCloser() ? 'Jetzt genau auf die Stelle klicken.' : 'Klicke auf die Stelle, an der der Marker stehen soll.' }}</span>
+            <span>Klicke auf die Stelle, an der der Marker stehen soll.</span>
             <button type="button" class="link" (click)="enterManually()">Koordinaten eingeben</button>
           </div>
         }
@@ -133,8 +133,6 @@ export class MapPage {
   protected markers = signal<MapMarker[]>([]);
   /** „Marker setzen“: der nächste Klick in die Karte bestimmt die Stelle */
   protected picking = signal(false);
-  /** erster Klick war zu weit weg: Karte ist herangezoomt, jetzt genau klicken */
-  protected pickCloser = signal(false);
   protected projectCount = computed(() => this.projects().filter((p) => p.placement).length);
   /** Legende: nur Kategorien, die es auch gibt */
   protected usedCategories = computed(() => MARKER_CATEGORY_KEYS
@@ -188,7 +186,6 @@ export class MapPage {
   }
 
   protected togglePicking() {
-    this.pickCloser.set(false);
     this.picking.set(!this.picking());
   }
 
@@ -197,30 +194,8 @@ export class MapPage {
     this.picking.set(false);
     const p = this.win()?.bluemap?.mapViewer?.controlsManager?.position;
     this.dialog().openNew({
-      // Höhe kennt die Übersicht nicht – Meereshöhe als Vorschlag
-      x: Math.floor(p?.x ?? 0), y: Math.round(p?.y || 64), z: Math.floor(p?.z ?? 0), dimension: this.currentDimension(),
+      x: Math.floor(p?.x ?? 0), y: SEA_LEVEL, z: Math.floor(p?.z ?? 0), dimension: this.currentDimension(), estimatedY: true,
     });
-  }
-
-  /** Kamera sanft auf eine Stelle fahren, nah genug für die genaue Höhe */
-  private zoomTo(x: number, z: number) {
-    const win = this.win();
-    const c = win?.bluemap?.mapViewer?.controlsManager;
-    if (!c) return;
-    const from = { x: c.position.x, z: c.position.z, d: c.distance };
-    // Genaue Kacheln zeigt BlueMap erst innerhalb seiner Sichtweite für Details (Einstellung im Kartenmenü)
-    const hires = win.bluemap.mapViewer.data?.loadedHiresViewDistance ?? 100;
-    const to = { x, z, d: Math.min(from.d, PICK_DISTANCE, hires * 0.7) };
-    const start = performance.now();
-    const step = (now: number) => {
-      const t = Math.min(1, (now - start) / 500);
-      const k = t < .5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
-      c.position.x = from.x + (to.x - from.x) * k;
-      c.position.z = from.z + (to.z - from.z) * k;
-      c.distance = from.d + (to.d - from.d) * k;
-      if (t < 1) win.requestAnimationFrame(step);
-    };
-    win.requestAnimationFrame(step);
   }
 
   /** Auswahlmodus auch im Dokument der Karte zeigen (Fadenkreuz) */
@@ -254,18 +229,17 @@ export class MapPage {
     }, true);
 
     // „Marker setzen“: Klick in die Karte liefert die getroffene Blockoberfläche
-    // Weit weg trifft der Klick nur die grobe Übersicht (ohne Höhe) → erst auf die Stelle zoomen
+    // Nah dran trifft der Klick echte Blöcke (genaue Höhe). Weit weg nur die flache Übersicht:
+    // X/Z stimmen, die Höhe nicht → Meereshöhe als Vorschlag, im Dialog als geschätzt markiert
     win.bluemap.events?.addEventListener?.('bluemapMapInteraction', (e: CustomEvent) => {
       const exact = e.detail?.hiresHit?.point;
-      const rough = e.detail?.hit?.point;
-      if (!this.picking() || !rough) return;
-      if (!exact) {
-        this.zoomTo(rough.x, rough.z);
-        this.pickCloser.set(true);
-        return;
-      }
+      const point = exact ?? e.detail?.hit?.point;
+      if (!this.picking() || !point) return;
       this.picking.set(false);
-      this.dialog().openNew({ x: Math.floor(exact.x), y: Math.round(exact.y), z: Math.floor(exact.z), dimension: this.currentDimension() });
+      this.dialog().openNew({
+        x: Math.floor(point.x), y: exact ? Math.round(exact.y) : SEA_LEVEL, z: Math.floor(point.z),
+        dimension: this.currentDimension(), estimatedY: !exact,
+      });
     });
     win.document.body.classList.toggle('neo-picking', this.picking());
 
