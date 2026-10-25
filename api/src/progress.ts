@@ -23,6 +23,8 @@ export interface ProgressResult {
   unloaded: number;
   /** Item-ID → verbaute Anzahl */
   placedItems: Map<string, number>;
+  /** Blöcke, die der Server nicht kennt (übersprungen) */
+  unknown: Set<string>;
 }
 
 // RCON prüft Block für Block; darüber dauert es zu lange (dann lohnt sich eine Server-Mod)
@@ -54,7 +56,7 @@ export async function checkProgress(rcon: Rcon, blocks: SchematicBlock[], placem
   if (blocks.length > MAX_BLOCKS) {
     throw new Error(`Die Schematic hat ${blocks.length} Blöcke; die RCON-Prüfung schafft höchstens ${MAX_BLOCKS}.`);
   }
-  const result: ProgressResult = { checked: 0, placed: 0, unloaded: 0, placedItems: new Map() };
+  const result: ProgressResult = { checked: 0, placed: 0, unloaded: 0, placedItems: new Map(), unknown: new Set() };
   const dim = placement.dimension;
   const world = blocks.map((b) => ({ block: b, at: toWorld(b, placement) }));
 
@@ -69,6 +71,9 @@ export async function checkProgress(rcon: Rcon, blocks: SchematicBlock[], placem
         }
       } else if (/not loaded/i.test(answer)) {
         result.unloaded++;
+      } else if (/unknown block/i.test(answer)) {
+        // Block, den dieser Server nicht kennt (z. B. aus einer Mod): zählt als nicht verbaut, statt alles abzubrechen
+        result.unknown.add(b.name);
       } else if (!/failed/i.test(answer)) {
         throw new Error(`Unerwartete Antwort vom Server: ${answer}`);
       }

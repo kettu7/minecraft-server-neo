@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Schematic } from './litematic.ts';
-import { splitAmount } from './items.ts';
+import { LEGACY_BLOCKS, blockToItems, splitAmount } from './items.ts';
 import type { Placement, ProgressResult } from './progress.ts';
 import type { ScanResult, StorageArea } from './storage.ts';
 
@@ -87,6 +87,21 @@ addColumn('projects', 'checked_at', 'TEXT');
 addColumn('projects', 'image_type', 'TEXT');        // z. B. image/webp; NULL = kein Bild
 addColumn('projects', 'image_updated_at', 'TEXT');  // dient auch als Cache-Version für die Bild-URL
 addColumn('materials', 'placed', 'INTEGER NOT NULL DEFAULT 0');
+
+// Materiallisten aus älteren Schematics: umbenannte Blöcke auf den heutigen Item-Namen bringen
+// (steht beides in einem Projekt, werden die Mengen zusammengelegt)
+for (const [old, block] of Object.entries(LEGACY_BLOCKS)) {
+  const [[item]] = blockToItems(block);
+  if (item === old) continue;
+  db.exec('BEGIN');
+  db.prepare(`
+    UPDATE materials SET required = required + (SELECT o.required FROM materials o WHERE o.project_id = materials.project_id AND o.item = ?)
+    WHERE item = ? AND EXISTS (SELECT 1 FROM materials o WHERE o.project_id = materials.project_id AND o.item = ?)
+  `).run(old, item, old);
+  db.prepare('DELETE FROM materials WHERE item = ? AND EXISTS (SELECT 1 FROM materials n WHERE n.project_id = materials.project_id AND n.item = ?)').run(old, item);
+  db.prepare('UPDATE materials SET item = ? WHERE item = ?').run(item, old);
+  db.exec('COMMIT');
+}
 // Gemeinsame Reihenfolge der Kacheln (Drag & Drop); NULL = noch nie einsortiert → steht vorn
 addColumn('projects', 'sort_order', 'INTEGER');
 addColumn('storages', 'sort_order', 'INTEGER');

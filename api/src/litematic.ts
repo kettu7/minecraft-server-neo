@@ -1,6 +1,6 @@
 // Liest .litematic-Dateien (gzip-komprimiertes NBT) und zählt die benötigten Items.
 import nbt from 'prismarine-nbt';
-import { blockToItems, type Props } from './items.ts';
+import { blockToItems, modernBlockId, type Props } from './items.ts';
 
 type Long = [number, number]; // prismarine-nbt: [high, low]
 type Vec = { x: number; y: number; z: number };
@@ -62,6 +62,9 @@ async function readRoot(buffer: Buffer): Promise<Root> {
   const { parsed } = await nbt.parse(buffer);
   const root = nbt.simplify(parsed) as Root;
   if (!root.Regions) throw new Error('Keine gültige .litematic-Datei (Regions fehlt).');
+  for (const region of Object.values(root.Regions)) {
+    for (const entry of region.BlockStatePalette) entry.Name = modernBlockId(entry.Name);
+  }
   return root;
 }
 

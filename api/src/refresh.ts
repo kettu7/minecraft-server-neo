@@ -71,6 +71,7 @@ async function runRefresh(scope: { storageIds: number[]; projectIds: number[] },
       try {
         const blocks = await readBlocks(await readFile(join(SCHEMATIC_DIR, `${id}.litematic`)));
         const result = await checkProgress(rcon, blocks, placement);
+        if (result.unknown.size) log.warn(`Projekt ${id}: Blöcke unbekannt, übersprungen: ${[...result.unknown].join(', ')}`);
         saveProgress(id, result);
         report.projects.push({ id, ms: Date.now() - t, placed: result.placed });
       } catch (err) {

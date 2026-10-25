@@ -56,6 +56,22 @@ function stripNamespace(id: string): string {
   return id.startsWith('minecraft:') ? id.slice('minecraft:'.length) : id;
 }
 
+/**
+ * Von Mojang umbenannte Blöcke: Schematics aus älteren Versionen enthalten noch den alten Namen,
+ * den der Server nicht mehr kennt („Unknown block type“).
+ */
+export const LEGACY_BLOCKS: Record<string, string> = {
+  grass_path: 'dirt_path', // 1.17
+  grass: 'short_grass', // 1.20.3
+  chain: 'iron_chain', // 1.21.9 (seitdem gibt es auch Kupferketten)
+};
+
+/** Alter Blockname → heutiger, mit Namespace wie in der Schematic */
+export function modernBlockId(id: string): string {
+  const renamed = LEGACY_BLOCKS[stripNamespace(id)];
+  return renamed ? `minecraft:${renamed}` : id;
+}
+
 /** Liefert die Items (mit Anzahl), die für genau einen Block dieses Zustands nötig sind. */
 export function blockToItems(blockId: string, props: Props = {}): Array<[string, number]> {
   const id = stripNamespace(blockId);
