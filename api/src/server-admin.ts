@@ -9,7 +9,7 @@ import { requireAdmin } from './auth.ts';
 import { audit, MINECRAFT_NAME } from './users.ts';
 import { db } from './db.ts';
 import { banInGame, cleanReason } from './moderation.ts';
-import { BACKUP_ID, createBackup, readMeta, setPinned } from './backup.ts';
+import { BACKUP_ID, backupStatus, createBackup, readMeta, setPinned } from './backup.ts';
 import { setWorldName } from './world-name.ts';
 
 const CONTROL_URL = process.env.CONTROL_URL ?? '';
@@ -126,6 +126,11 @@ async function skin(name: string): Promise<Buffer | null> {
 
 export const wait = (s: number) => new Promise((r) => setTimeout(r, s * 1000));
 
+/** Neustart/Stopp mitten im Backup würde es abschneiden → erst fertig werden lassen */
+async function backupFinished() {
+  while (backupStatus().running) await wait(2);
+}
+
 /* ───────────────────────── Routen ───────────────────────── */
 
 export async function registerServerAdmin(app: FastifyInstance) {
@@ -194,6 +199,7 @@ export async function registerServerAdmin(app: FastifyInstance) {
 
   app.post('/api/server/restart', async (req, reply) => {
     if (!requireAdmin(req, reply)) return;
+    await backupFinished();
     await rcon(tellraw(`Server startet in ${WARNING_SECONDS} Sekunden neu – gleich wieder da!`), 'save-all flush').catch(() => undefined);
     audit(req.user!.id, 'server neu gestartet');
     await wait(WARNING_SECONDS);
@@ -208,6 +214,7 @@ export async function registerServerAdmin(app: FastifyInstance) {
   // Server anhalten (bleibt aus, bis jemand „Starten“ drückt) und wieder starten
   app.post('/api/server/stop', async (req, reply) => {
     if (!requireAdmin(req, reply)) return;
+    await backupFinished();
     await rcon(tellraw(`Server wird in ${WARNING_SECONDS} Sekunden gestoppt.`), 'save-all flush').catch(() => undefined);
     audit(req.user!.id, 'server gestoppt');
     await wait(WARNING_SECONDS);

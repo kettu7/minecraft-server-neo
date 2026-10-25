@@ -8,6 +8,11 @@ const TYPE_COMMAND = 2;
 const FRAGMENT_SIZE = 4096;
 /** Kommt nach einem vollen Stück nichts mehr, war es das letzte (Antwort genau 4096 Zeichen lang). */
 const FRAGMENT_WAIT_MS = 250;
+/** Verbindungsaufbau: Server aus oder im Neustart → schnell aufgeben statt ewig zu warten */
+const CONNECT_TIMEOUT_MS = 10_000;
+/** Standard-Zeitgrenze pro Befehl. Startet der Server mittendrin neu, kommt nie eine Antwort –
+ *  ohne Grenze hinge der Aufrufer (z. B. ein Backup) für immer. */
+export const COMMAND_TIMEOUT_MS = 30_000;
 
 interface Pending {
   resolve: (body: string) => void;
@@ -30,9 +35,21 @@ export class Rcon {
   async connect(): Promise<void> {
     if (!this.password) throw new Error('RCON_PASSWORD ist nicht gesetzt (siehe .env).');
     this.socket = await new Promise<Socket>((resolve, reject) => {
-      const s = connect({ host: this.host, port: this.port }, () => resolve(s));
-      s.once('error', reject);
+      const s = connect({ host: this.host, port: this.port }, () => {
+        clearTimeout(timer);
+        resolve(s);
+      });
+      const timer = setTimeout(() => {
+        s.destroy();
+        reject(new Error('Minecraft-Server nicht erreichbar (Zeitüberschreitung).'));
+      }, CONNECT_TIMEOUT_MS);
+      s.once('error', (err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
     });
+    // Verschwindet der Container, kommt evtl. kein Verbindungsende an → TCP-Keepalive bemerkt es
+    this.socket.setKeepAlive(true, 10_000);
     this.socket.on('data', (chunk) => this.onData(chunk as Buffer));
     this.socket.on('error', (err) => this.failAll(err));
     this.socket.on('close', () => this.failAll(new Error('RCON-Verbindung geschlossen')));
@@ -45,8 +62,8 @@ export class Rcon {
    * Befehle laufen strikt nacheinander: Minecraft verarbeitet pro Lesevorgang nur ein Paket
    * und trennt die Verbindung, wenn mehrere auf einmal ankommen.
    */
-  command(cmd: string): Promise<string> {
-    const result = this.queue.then(() => this.send(TYPE_COMMAND, cmd));
+  command(cmd: string, timeoutMs = COMMAND_TIMEOUT_MS): Promise<string> {
+    const result = this.queue.then(() => this.send(TYPE_COMMAND, cmd, timeoutMs));
     this.queue = result.catch(() => undefined);
     return result;
   }
@@ -56,7 +73,7 @@ export class Rcon {
     this.socket = undefined;
   }
 
-  private send(type: number, body: string): Promise<string> {
+  private send(type: number, body: string, timeoutMs = COMMAND_TIMEOUT_MS): Promise<string> {
     const id = this.nextId++;
     const payload = Buffer.from(body, 'utf8');
     const packet = Buffer.alloc(14 + payload.length);
@@ -65,8 +82,18 @@ export class Rcon {
     packet.writeInt32LE(type, 8);
     payload.copy(packet, 12);
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject, parts: [] });
-      this.socket!.write(packet);
+      // Keine Antwort in der Zeit: Verbindung ist nicht mehr brauchbar → alles Offene abbrechen
+      const deadline = setTimeout(() => {
+        this.failAll(new Error(`Keine Antwort vom Minecraft-Server auf „${body.split(' ')[0]}“ (Zeitüberschreitung).`));
+        this.socket?.destroy();
+      }, timeoutMs);
+      const done = <T>(fn: (v: T) => void) => (v: T) => {
+        clearTimeout(deadline);
+        fn(v);
+      };
+      this.pending.set(id, { resolve: done(resolve), reject: done(reject), parts: [] });
+      if (!this.socket || this.socket.destroyed) return this.failAll(new Error('RCON-Verbindung geschlossen'));
+      this.socket.write(packet);
     });
   }
 

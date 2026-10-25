@@ -168,6 +168,9 @@ function streamWorldArchive(target: string): Promise<void> {
   });
 }
 
+/** save-all flush schreibt alle geladenen Chunks – großzügig, aber nicht unbegrenzt */
+const SAVE_TIMEOUT_MS = 5 * 60_000;
+
 let running = false;
 let lastRun: { at: string; ok: boolean; error?: string; id?: string } | undefined;
 let nextRunAt: Date | undefined;
@@ -209,7 +212,8 @@ export async function createBackup(
     await rcon.connect();
     await rcon.command('save-off');
     savingOff = true;
-    await rcon.command('save-all flush');
+    // Große Welten brauchen zum Wegschreiben etwas länger als ein normaler Befehl
+    await rcon.command('save-all flush', SAVE_TIMEOUT_MS);
     await streamWorldArchive(join(partial, WORLD_FILE));
     await rcon.command('save-on');
     savingOff = false;
@@ -239,10 +243,23 @@ export async function createBackup(
     await rm(partial, { recursive: true, force: true });
     throw new Error(message);
   } finally {
-    // Speichern auf jeden Fall wieder einschalten
-    if (savingOff) await rcon.command('save-on').catch(() => undefined);
+    // Speichern auf jeden Fall wieder einschalten – notfalls über eine neue Verbindung,
+    // falls die alte abgebrochen ist (sonst speichert die Welt bis zum nächsten Neustart nicht mehr)
+    if (savingOff) await rcon.command('save-on').catch(() => saveOnFresh(log));
     rcon.close();
     running = false;
+  }
+}
+
+async function saveOnFresh(log: FastifyBaseLogger) {
+  const fresh = new Rcon();
+  try {
+    await fresh.connect();
+    await fresh.command('save-on');
+  } catch (err) {
+    log.warn(`save-on nach abgebrochenem Backup fehlgeschlagen: ${(err as Error).message}`);
+  } finally {
+    fresh.close();
   }
 }
 
