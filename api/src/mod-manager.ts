@@ -7,7 +7,9 @@ import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { db, transaction } from './db.ts';
 import { requireAdmin } from './auth.ts';
 import { audit, type User } from './users.ts';
-import { createBackup } from './backup.ts';
+import { createBackup, setPinned } from './backup.ts';
+import { checkCompatibility } from './mod-compat.ts';
+import { notify } from './notifications.ts';
 import { control, rcon, tellraw, wait, WARNING_SECONDS } from './server-admin.ts';
 import {
   installedVersions,
@@ -318,6 +320,10 @@ async function writeModsFile(mods: ManagedMod[], by: string) {
 /* ───────────────────────── Übernehmen ───────────────────────── */
 
 let job: ApplyJob | null = null;
+/** so lange darf der Server zum Starten brauchen (Mods laden, Welt vorbereiten) */
+const START_TIMEOUT_MS = 6 * 60_000;
+/** zuletzt automatisch angepinntes Backup „Vor Mod-Änderung“ */
+const PINNED_BACKUP = 'apply_pinned_backup';
 export const applyStatus = () => job ?? getState<ApplyJob>('last_apply') ?? null;
 export const applyRunning = () => !!job?.running;
 
@@ -338,6 +344,14 @@ export function applyBlocker(): string | null {
   return null;
 }
 
+/** Versionskonflikte im geplanten Stand (fabric.mod.json der Mods). Ohne Änderungen gibt es nichts zu prüfen. */
+export async function compatibilityProblems(download = true): Promise<string[]> {
+  const desired = listManaged();
+  if (!pendingChanges(desired, appliedMods()).length) return [];
+  const { minecraft, loader } = await readInstallation();
+  return checkCompatibility(desired, { minecraft, loader }, download);
+}
+
 /**
  * Vom geplanten Neustart aufgerufen: vorgemerkte Änderungen übernehmen (Backup, Neustart, Prüfung).
  * true = erledigt (Server ist neu gestartet), false = nichts zu tun – dann normal neu starten.
@@ -346,9 +360,13 @@ export async function runScheduledApply(log: FastifyBaseLogger): Promise<boolean
   const planned = applyAtRestart();
   if (!planned || applyRunning() || !MODS_FILE) return false;
   setApplyAtRestart(null);
-  const blocker = applyBlocker();
+  const blocker = applyBlocker() ?? ((await compatibilityProblems()).join(' ') || null);
   if (blocker) {
     audit(planned.userId, 'geplante mod-änderung übersprungen', blocker);
+    notify({
+      kind: 'warning', audience: 'admin', title: 'Mod-Änderung nicht übernommen',
+      body: `Beim geplanten Neustart übersprungen: ${blocker}`.slice(0, 400), link: '/admin/mods', actionLabel: 'Zu den Mods',
+    });
     return false;
   }
   await runApply({ id: planned.userId, displayName: `${planned.by} (geplanter Neustart)` }, log);
@@ -385,8 +403,13 @@ async function runApply(user: Pick<User, 'displayName'> & { id: number | null },
   };
 
   try {
-    const backup = await createBackup('manual', `Vor Mod-Änderung (${user.displayName})`, log);
+    // Angepinnt, damit die Aufräumregel es nicht löscht, bevor man merkt, dass etwas fehlt.
+    // Das vorige automatisch angepinnte Backup wird dafür wieder freigegeben (es bleibt höchstens eins).
+    const backup = await createBackup('manual', `Vor Mod-Änderung (${user.displayName})`, log, { pinned: true });
     job.backupId = backup.id;
+    const previousPin = getState<string>(PINNED_BACKUP);
+    if (previousPin && previousPin !== backup.id) await setPinned(previousPin, false).catch(() => false);
+    setState(PINNED_BACKUP, backup.id);
 
     job.step = 'Mod-Liste wird geschrieben';
     await writeModsFile(desired, user.displayName);
@@ -399,16 +422,24 @@ async function runApply(user: Pick<User, 'displayName'> & { id: number | null },
     await control('POST', '/restart');
 
     job.step = 'Server startet und lädt Mods';
-    if (!(await waitHealthy(6 * 60_000))) {
+    if (!(await waitHealthy(START_TIMEOUT_MS))) {
       const logs = await serverLogs();
-      // Alte Liste zurückschreiben, damit der nächste Start wieder klappt
+      // Rückweg: alte Liste zurückschreiben und gleich damit neu starten
+      job.step = 'Fehler – alter Stand wird wiederhergestellt';
       await writeModsFile(previous, `${user.displayName} (zurückgesetzt nach Fehler)`).catch(() => undefined);
-      audit(user.id, 'mods übernehmen fehlgeschlagen', 'Server startete nicht');
-      return finish({
-        ok: false,
-        error: 'Der Server ist nicht sauber gestartet. Die alte Mod-Liste wurde zurückgeschrieben – Server unter „Server“ neu starten. Deine geplanten Änderungen bleiben erhalten.',
-        logs,
+      await control('POST', '/restart').catch(() => undefined);
+      const recovered = await waitHealthy(START_TIMEOUT_MS);
+      audit(user.id, 'mods übernehmen fehlgeschlagen', recovered ? 'Server startete nicht – alter Stand wiederhergestellt' : 'Server startete nicht');
+      const error = recovered
+        ? 'Der Server ist mit den neuen Mods nicht gestartet. Der alte Stand wurde wiederhergestellt, der Server läuft wieder. Deine geplanten Änderungen bleiben erhalten – Ursache steht im Log unten.'
+        : 'Der Server ist nicht gestartet, auch nicht mit dem alten Stand. Bitte unter „Server“ neu starten und das Log prüfen; im Notfall den Container mc-neo in Komodo neu starten.';
+      notify({
+        kind: 'warning', audience: 'admin',
+        title: recovered ? 'Mod-Änderung zurückgenommen' : 'Server startet nicht',
+        body: recovered ? 'Der Server ist mit den neuen Mods nicht gestartet und läuft wieder mit dem alten Stand.' : error,
+        link: '/admin/mods', actionLabel: 'Zu den Mods',
       });
+      return finish({ ok: false, error, logs });
     }
 
     job.step = 'Installation wird geprüft';
@@ -480,6 +511,7 @@ export async function managedOverview(game: string | null, fresh: boolean) {
     unmanaged,
     pending: pendingChanges(desired, applied),
     dependencyProblems: missingDependencies(desired),
+    compatProblems: await compatibilityProblems(false).catch(() => [] as string[]),
     apply: applyStatus(),
     applyAtRestart: applyAtRestart(),
     canApply: !!MODS_FILE,
@@ -633,6 +665,8 @@ export async function registerModManager(app: FastifyInstance) {
     if (!MODS_FILE) return reply.code(400).send({ error: 'Übernehmen geht nur im Docker-Betrieb.' });
     const blocker = applyBlocker();
     if (blocker) return reply.code(400).send({ error: blocker });
+    const conflicts = await compatibilityProblems();
+    if (conflicts.length) return reply.code(400).send({ error: `Versionen passen nicht zusammen: ${conflicts.join(' ')}` });
     void runApply(req.user!, req.log);
     return { ok: true };
   });

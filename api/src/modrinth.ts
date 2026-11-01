@@ -146,6 +146,13 @@ export const projectVersions = (projectId: string, gameVersion: string, kind: Pa
 /** Hauptdatei einer Version (für Downloads im Modpack) */
 export const primaryFile = (v: MrVersion) => v.files.find((f) => f.primary) ?? v.files[0];
 
+/** Mod-Datei herunterladen (z. B. um ihre fabric.mod.json zu lesen) */
+export async function downloadFile(url: string): Promise<Buffer> {
+  const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(60_000) });
+  if (!res.ok) throw new Error(`${new URL(url).host}: HTTP ${res.status}`);
+  return Buffer.from(await res.arrayBuffer());
+}
+
 export const gameVersionTags = () => request<GameVersionTag[]>(`${MODRINTH}/tag/game_version`);
 
 export const loaderVersions = (gameVersion: string) =>

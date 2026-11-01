@@ -9,7 +9,7 @@ import { audit } from './users.ts';
 import { backupStatus, createBackup } from './backup.ts';
 import { backupNeeded } from './backup-schedule.ts';
 import {
-  applyAtRestart, applyBlocker, applyRunning, getState, runScheduledApply, setApplyAtRestart, setState,
+  applyAtRestart, applyBlocker, applyRunning, compatibilityProblems, getState, runScheduledApply, setApplyAtRestart, setState,
 } from './mod-manager.ts';
 import { control, rcon, tellraw, wait } from './server-admin.ts';
 
@@ -138,6 +138,8 @@ export async function registerAutoRestart(app: FastifyInstance) {
     if (applyRunning()) return reply.code(409).send({ error: 'Gerade werden Änderungen übernommen – bitte kurz warten.' });
     const blocker = applyBlocker();
     if (blocker) return reply.code(400).send({ error: blocker });
+    const conflicts = await compatibilityProblems();
+    if (conflicts.length) return reply.code(400).send({ error: `Versionen passen nicht zusammen: ${conflicts.join(' ')}` });
     const value = { by: req.user!.displayName, userId: req.user!.id, at: new Date().toISOString() };
     setApplyAtRestart(value);
     audit(req.user!.id, 'mod-änderungen beim neustart', `täglich ${settings().time} Uhr`);

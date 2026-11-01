@@ -66,6 +66,8 @@ export interface ModsOverview {
   unmanaged: Array<{ file: string; size: number }>;
   pending: ModChange[];
   dependencyProblems: Array<{ mod: string; needs: string }>;
+  /** Versionen passen nicht zusammen (aus den fabric.mod.json der Mods) */
+  compatProblems: string[];
   apply: ApplyJob | null;
   /** vorgemerkt: beim nächsten geplanten Neustart übernehmen */
   applyAtRestart: { by: string; at: string } | null;
@@ -227,6 +229,12 @@ const CHANGE_LABELS: Record<ModChange['kind'], string> = {
             @else if (!d.restart.enabled) {
               <p class="hint small-text">Tipp: Mit dem geplanten Neustart (Admin → Server → Einstellungen) lassen sich Änderungen auch nachts übernehmen.</p>
             }
+            @if (d.compatProblems.length) {
+              <div class="error small compat-problems">
+                <strong>Versionen passen nicht zusammen – so würde der Server nicht starten:</strong>
+                <ul>@for (p of d.compatProblems; track p) { <li>{{ p }}</li> }</ul>
+              </div>
+            }
             @if (d.dependencyProblems.length) {
               <p class="error small">
                 Es fehlen benötigte Mods:
@@ -240,12 +248,12 @@ const CHANGE_LABELS: Record<ModChange['kind'], string> = {
               <button type="button" class="secondary" (click)="setApplyAtRestart(false)" [disabled]="busy()">Nicht beim Neustart</button>
             } @else {
               <button type="button" class="secondary with-icon" (click)="setApplyAtRestart(true)"
-                      [disabled]="busy() || !d.canApply || !d.restart.enabled || d.dependencyProblems.length > 0"
+                      [disabled]="busy() || !d.canApply || !d.restart.enabled || d.dependencyProblems.length > 0 || d.compatProblems.length > 0"
                       [title]="d.restart.enabled ? 'Mit Backup beim nächsten geplanten Neustart übernehmen' : 'Geplanter Neustart ist aus (Admin → Server → Einstellungen)'">
                 <app-icon name="clock" [size]="15" />Beim Neustart {{ d.restart.time }} Uhr
               </button>
             }
-            <button type="button" (click)="apply()" [disabled]="busy() || !d.canApply || d.dependencyProblems.length > 0">Jetzt übernehmen</button>
+            <button type="button" (click)="apply()" [disabled]="busy() || !d.canApply || d.dependencyProblems.length > 0 || d.compatProblems.length > 0">Jetzt übernehmen</button>
           </div>
         </section>
       }

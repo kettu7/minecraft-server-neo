@@ -2059,3 +2059,5 @@ app-new-world { display: grid; }
 }
 .marker-form .estimated { margin-left: .3rem; font-weight: 600; color: var(--warn); }
 .marker-form .marker-estimate { margin: -.35rem 0 0; font-size: .8rem; }
+.compat-problems { display: grid; gap: .35rem; }
+.compat-problems ul { margin: 0; padding-left: 1.1rem; display: grid; gap: .2rem; }
