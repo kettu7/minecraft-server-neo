@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { AdminNav } from './admin-nav';
 import { errorMessage, formatDate } from './projects.service';
 import { Icon } from './icon';
+import { ConfigDialog, ConfigFile, ConfigService } from './config-dialog';
 
 export type Side = 'required' | 'optional' | 'unsupported' | 'unknown';
 interface VersionRef { id: string; number: string; type: string; published: string }
@@ -153,7 +154,7 @@ const CHANGE_LABELS: Record<ModChange['kind'], string> = {
 
 @Component({
   selector: 'app-admin-mods',
-  imports: [AdminNav, DecimalPipe, Icon],
+  imports: [AdminNav, ConfigDialog, DecimalPipe, Icon],
   template: `
     <app-admin-nav />
 
@@ -290,6 +291,11 @@ const CHANGE_LABELS: Record<ModChange['kind'], string> = {
             }
           </div>
           <div class="mat-toolbar-right">
+            @if (configs().length) {
+              <button type="button" class="secondary compact with-icon" (click)="openAllConfigs()">
+                <app-icon name="settings" [size]="14" />Konfigurationen <span class="seg-count">{{ configs().length }}</span>
+              </button>
+            }
             <button type="button" class="secondary compact" (click)="load(true)" [disabled]="loading()">
               {{ loading() ? 'Prüfe …' : 'Jetzt prüfen' }}
             </button>
@@ -371,6 +377,11 @@ const CHANGE_LABELS: Record<ModChange['kind'], string> = {
                   </td>
                   <td class="actions-col">
                     <div class="row-actions">
+                      @if (configsOf(m).length; as count) {
+                        <button type="button" class="icon-btn" (click)="openConfig(m)"
+                                [title]="count === 1 ? 'Konfiguration bearbeiten' : 'Konfiguration bearbeiten (' + count + ' Dateien)'"
+                                [attr.aria-label]="m.title + ': Konfiguration bearbeiten'"><app-icon name="settings" /></button>
+                      }
                       <button type="button" class="icon-btn" (click)="editNote(m)" [disabled]="busy() || running()" title="Notiz"><app-icon name="pencil" /></button>
                       <button type="button" class="icon-btn danger" (click)="remove(m)" [disabled]="busy() || running()" title="Aus der Liste entfernen"><app-icon name="x" [size]="16" /></button>
                     </div>
@@ -510,10 +521,20 @@ const CHANGE_LABELS: Record<ModChange['kind'], string> = {
         }
       </div>
     </dialog>
+
+    <app-config-dialog (changed)="loadConfigs()" />
   `,
 })
 export class AdminMods {
   private api = inject(ModsService);
+  private configApi = inject(ConfigService);
+  private configDialog = viewChild.required(ConfigDialog);
+  protected configs = signal<ConfigFile[]>([]);
+  private configsByMod = computed(() => {
+    const map = new Map<string, ConfigFile[]>();
+    for (const f of this.configs()) if (f.mod) map.set(f.mod.projectId, [...(map.get(f.mod.projectId) ?? []), f]);
+    return map;
+  });
   protected data = signal<ModsOverview | undefined>(undefined);
   protected error = signal('');
   protected notice = signal('');
@@ -581,10 +602,34 @@ export class AdminMods {
     }
   }
 
+  /* ───── Konfiguration ───── */
+
+  /** Fehlt der Server-Ordner (lokal ohne Docker), gibt es einfach keine Knöpfe */
+  private configsAsked = false;
+
+  async loadConfigs() {
+    this.configsAsked = true;
+    this.configs.set(await this.configApi.list().catch(() => []));
+  }
+
+  protected configsOf(m: ManagedMod) {
+    return this.configsByMod().get(m.projectId) ?? [];
+  }
+
+  protected openConfig(m: ManagedMod) {
+    return this.configDialog().open(this.configsOf(m), `Konfiguration – ${m.title}`);
+  }
+
+  protected openAllConfigs() {
+    return this.configDialog().open(this.configs(), 'Alle Konfigurationen', true);
+  }
+
   async load(refresh = false) {
     this.loading.set(true);
     try {
       const d = await this.api.overview(refresh);
+      // Dateien nur beim ersten Mal und auf Wunsch neu suchen, nicht bei jedem Abruf während des Übernehmens
+      if (refresh || !this.configsAsked) void this.loadConfigs();
       const wasRunning = this.running();
       this.data.set(d);
       this.error.set('');

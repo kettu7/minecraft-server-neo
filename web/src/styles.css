@@ -2059,5 +2059,37 @@ app-new-world { display: grid; }
 }
 .marker-form .estimated { margin-left: .3rem; font-weight: 600; color: var(--warn); }
 .marker-form .marker-estimate { margin: -.35rem 0 0; font-size: .8rem; }
+/* Mod-Konfiguration bearbeiten */
+.config-dialog { width: min(68rem, calc(100vw - 2rem)); height: min(44rem, 86vh); }
+.config-dialog .dialog-body { grid-template-rows: auto minmax(0, 1fr); }
+.config-layout { display: grid; grid-template-columns: minmax(12rem, 17rem) minmax(0, 1fr); gap: 1rem; min-height: 0; }
+.config-layout.single { grid-template-columns: minmax(0, 1fr); }
+.config-files { display: grid; align-content: start; gap: .3rem; overflow-y: auto; padding-right: .25rem; }
+.config-files button {
+  display: grid; gap: .1rem; text-align: left; padding: .55rem .7rem; font-weight: 500; font-size: .82rem; text-transform: none; letter-spacing: 0;
+  color: var(--muted); background: rgba(0, 0, 0, .2); border: 1px solid var(--line); border-radius: var(--radius-sm); box-shadow: none;
+  overflow-wrap: anywhere;
+}
+.config-files button:hover:not(:disabled) { color: var(--text); border-color: rgba(255, 255, 255, .18); transform: none; filter: none; }
+.config-files button.active { color: var(--text); border-color: var(--accent); background: var(--accent-soft); }
+.config-files small { color: var(--faint); font-size: .74rem; }
+.config-editor { display: flex; flex-direction: column; gap: .6rem; min-height: 0; min-width: 0; }
+.config-bar { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; font-size: .85rem; color: var(--muted); }
+.config-bar select { width: auto; max-width: 100%; padding-block: .45rem; font-size: .82rem; }
+.config-text {
+  flex: 1; min-height: 12rem; width: 100%; resize: none; padding: .8rem .9rem; overflow: auto; white-space: pre; tab-size: 2;
+  font: 400 .84rem/1.55 var(--font-mono, ui-monospace, 'Cascadia Code', Consolas, monospace); color: var(--text);
+  background: rgba(0, 0, 0, .32); border: 1px solid var(--glass-border); border-radius: var(--radius-sm);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, .35); transition: border-color .15s, box-shadow .15s;
+}
+.config-text:focus { outline: none; border-color: var(--accent); box-shadow: inset 0 2px 6px rgba(0, 0, 0, .35), 0 0 0 3px var(--accent-soft); }
+.config-msg { margin: 0; }
+.config-saved { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; margin: 0; color: var(--accent); font-weight: 600; font-size: .9rem; }
+.config-footer { justify-content: flex-end; }
+.config-footer button:not(.text-button) { min-width: 9rem; }
+@media (max-width: 720px) {
+  .config-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .config-files { grid-auto-flow: column; grid-auto-columns: max-content; overflow-x: auto; overflow-y: hidden; padding: 0 0 .25rem; }
+}
 .compat-problems { display: grid; gap: .35rem; }
 .compat-problems ul { margin: 0; padding-left: 1.1rem; display: grid; gap: .2rem; }

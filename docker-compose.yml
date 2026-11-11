@@ -84,7 +84,7 @@ services:
       TZ: Europe/Berlin
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - mc-data:/mc                   # schreibend – nur für das Zurückspielen
+      - mc-data:/mc                   # schreibend – Zurückspielen, Spielerzahl, Mod-Configs
       - ./backups:/backups:ro
     restart: unless-stopped
 

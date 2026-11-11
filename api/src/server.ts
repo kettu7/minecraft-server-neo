@@ -20,6 +20,7 @@ import { registerOps } from './ops.ts';
 import { registerNewWorld } from './new-world.ts';
 import { registerProjectImages, removeProjectImages } from './project-images.ts';
 import { registerMods } from './mods.ts';
+import { registerConfigFiles } from './config-files.ts';
 import { packUpdatedAt, registerModpack } from './modpack.ts';
 import { registerNotifications } from './notifications.ts';
 import { contentDisposition } from './download-name.ts';
@@ -52,6 +53,7 @@ await registerOps(app);
 await registerNewWorld(app);
 await registerProjectImages(app);
 await registerMods(app);
+await registerConfigFiles(app);
 await registerModpack(app);
 registerNotifications(app);
 

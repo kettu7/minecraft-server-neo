@@ -5,7 +5,7 @@
 import { createServer, request, type IncomingMessage, type ServerResponse } from 'node:http';
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { chown, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { chmod, chown, lstat, readFile, readdir, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { timingSafeEqual } from 'node:crypto';
 import { join } from 'node:path';
 
@@ -205,6 +205,51 @@ async function newWorld(seed = '') {
   return { ok: true };
 }
 
+/* ───────────────────────── Mod-Konfiguration ───────────────────────── */
+
+const CONFIG_DIR = join(MC_DIR, 'config');
+const CONFIG_MAX_BYTES = 512 * 1024;
+const CONFIG_EXTENSIONS = new Set(['.json', '.json5', '.toml', '.properties', '.yml', '.yaml', '.cfg', '.conf', '.txt', '.snbt']);
+
+/** Eine vorhandene Textdatei unterhalb von config/ ersetzen. Neue Dateien, Unterordner-Tricks und Links werden abgelehnt. */
+async function writeConfig(rel: string, content: string) {
+  const parts = rel.split('/');
+  if (!rel || rel.length > 200 || /[\\\0]/.test(rel) || parts.some((p) => !p || p.startsWith('.'))) throw new Error('Ungültiger Pfad.');
+  const dot = rel.lastIndexOf('.');
+  if (!CONFIG_EXTENSIONS.has(dot < 0 ? '' : rel.slice(dot).toLowerCase())) throw new Error('Dateityp nicht erlaubt.');
+  if (Buffer.byteLength(content) > CONFIG_MAX_BYTES) throw new Error('Datei ist zu groß.');
+
+  const file = join(CONFIG_DIR, ...parts);
+  const real = await realpath(file).catch(() => '');
+  const root = await realpath(CONFIG_DIR).catch(() => '');
+  if (!real || !root || real !== join(root, ...parts)) throw new Error('Datei nicht gefunden.');
+  const info = await lstat(file);
+  if (!info.isFile()) throw new Error('Keine normale Datei.');
+
+  // Erst daneben schreiben, dann ersetzen: bei einem Abbruch bleibt die alte Datei heil
+  const temp = `${file}.neo-tmp`;
+  await writeFile(temp, content);
+  // Rechte und Besitzer der alten Datei übernehmen (die umask würde sonst Gruppenrechte entfernen)
+  await chmod(temp, info.mode & 0o777);
+  await chown(temp, info.uid, info.gid).catch(() => undefined);
+  await rename(temp, file);
+  return { ok: true, size: Buffer.byteLength(content) };
+}
+
+function readBody(req: IncomingMessage, limit: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let size = 0;
+    req.on('data', (c: Buffer) => {
+      size += c.length;
+      if (size > limit) { reject(new Error('Anfrage ist zu groß.')); req.destroy(); return; }
+      chunks.push(c);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    req.on('error', reject);
+  });
+}
+
 /* ───────────────────────── HTTP ───────────────────────── */
 
 function authorized(req: IncomingMessage) {
@@ -231,6 +276,22 @@ const ACTIONS: Record<string, (arg?: string) => Promise<unknown>> = {
 createServer(async (req, res) => {
   if (!authorized(req)) return send(res, 401, { error: 'Nicht autorisiert' });
   const url = new URL(req.url ?? '/', 'http://control');
+
+  // Config-Datei ersetzen (Inhalt im Body); dauert Millisekunden und blockiert keine Server-Aktion
+  if (req.method === 'PUT' && url.pathname === '/config') {
+    try {
+      const path = url.searchParams.get('path') ?? '';
+      const body = JSON.parse(await readBody(req, CONFIG_MAX_BYTES * 2)) as { content?: unknown };
+      if (typeof body.content !== 'string') throw new Error('Inhalt fehlt.');
+      const result = await writeConfig(path, body.content);
+      console.log(new Date().toISOString(), 'PUT /config', path, 'ok');
+      return send(res, 200, result);
+    } catch (err) {
+      console.error(new Date().toISOString(), 'PUT /config', (err as Error).message);
+      return send(res, 400, { error: (err as Error).message });
+    }
+  }
+
   const action = ACTIONS[`${req.method} ${url.pathname}`];
   if (!action) return send(res, 404, { error: 'Unbekannt' });
 

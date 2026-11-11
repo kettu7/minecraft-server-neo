@@ -20,11 +20,12 @@ export const MC_ADDRESS = process.env.MC_ADDRESS ?? 'localhost';
 
 /* ───────────────────────── Hilfen ───────────────────────── */
 
-export async function control(method: 'GET' | 'POST', path: string, timeoutMs = 300_000) {
+export async function control(method: 'GET' | 'POST' | 'PUT', path: string, timeoutMs = 300_000, payload?: unknown) {
   if (!CONTROL_URL) throw new Error('Steuerdienst nicht eingerichtet (nur im Docker-Betrieb verfügbar).');
   const res = await fetch(`${CONTROL_URL}${path}`, {
     method,
-    headers: { Authorization: `Bearer ${process.env.CONTROL_TOKEN ?? ''}` },
+    headers: { Authorization: `Bearer ${process.env.CONTROL_TOKEN ?? ''}`, ...(payload === undefined ? {} : { 'Content-Type': 'application/json' }) },
+    body: payload === undefined ? undefined : JSON.stringify(payload),
     signal: AbortSignal.timeout(timeoutMs),
   });
   const body = await res.json().catch(() => ({}));
