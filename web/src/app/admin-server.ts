@@ -122,7 +122,7 @@ const POLL_MS = 5_000;
 
       <section class="card">
         <h3>Admin-Chat</h3>
-        <p class="hint small-text">Erscheint im Spiel-Chat als <span class="ok">[Neo]</span>.</p>
+        <p class="hint small-text">Erscheint im Spiel-Chat als <span class="ok">[Gott]</span>.</p>
         <form class="chat-form" (submit)="say($event, msg)">
           <input #msg type="text" maxlength="200" placeholder="Text eingeben …" aria-label="Nachricht" />
           <button type="submit" [disabled]="busy()">Senden</button>

@@ -53,10 +53,10 @@ export function parsePlayerList(answer: string) {
   return { online: Number(m[1]), max: Number(m[2]), names };
 }
 
-/** Ansage im Chat: grünes [Neo] vor dem Text */
+/** Ansage im Chat: grünes [Gott] vor dem Text */
 export function tellraw(message: string) {
   const text = message.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, 200);
-  return `tellraw @a ${JSON.stringify([{ text: '[Neo] ', color: 'green', bold: true }, { text, color: 'white', bold: false }])}`;
+  return `tellraw @a ${JSON.stringify([{ text: '[Gott] ', color: 'green', bold: true }, { text, color: 'white', bold: false }])}`;
 }
 
 async function readServerFile(name: string): Promise<string | undefined> {
